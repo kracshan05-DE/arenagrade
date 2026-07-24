@@ -245,9 +245,12 @@ export default function Home() {
                         {getMinPrice(court.court_pricing)}
                       </p>
                     </div>
-                    <button className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition">
+                    <a
+                      href={`/courts/${court.id}`}
+                      className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition"
+                    >
                       Book Now
-                    </button>
+                    </a>
                   </div>
                 </div>
               ))}
