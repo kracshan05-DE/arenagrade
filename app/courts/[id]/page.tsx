@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import Navbar from '@/components/Navbar'
 
 interface Court {
   id: string
@@ -91,7 +92,6 @@ export default function CourtPage() {
   maxDate.setDate(maxDate.getDate() + 30)
   const maxDateStr = maxDate.toISOString().split('T')[0]
 
-  // Group slots by time band
   const timeGroups: Record<string, GroupedSlot> = {}
   slots.forEach(slot => {
     const key = `${slot.start_time}-${slot.end_time}`
@@ -107,11 +107,9 @@ export default function CourtPage() {
     return startTime >= cutoff
   }
 
-  // Determine effective status of full court considering half court bookings
   const getEffectiveFullCourtStatus = (group: GroupedSlot): string => {
     const fc = group.full_court
     if (!fc) return 'na'
-    // If either half is booked or locked, full court is N/A
     const halfABlocked = group.half_a && (group.half_a.status === 'booked' || group.half_a.status === 'locked')
     const halfBBlocked = group.half_b && (group.half_b.status === 'booked' || group.half_b.status === 'locked')
     if (halfABlocked || halfBBlocked) return 'na'
@@ -159,10 +157,13 @@ export default function CourtPage() {
             LKR {price.toLocaleString()}
           </p>
         )}
-        {status === 'available' && (
-          <button style={{ width: '100%', background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+        {status === 'available' && slot && (
+          <a
+            href={`/booking/${slot.id}`}
+            style={{ width: '100%', background: '#1B6B3A', color: '#fff', borderRadius: '6px', padding: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', textDecoration: 'none', display: 'block', textAlign: 'center' }}
+          >
             Book
-          </button>
+          </a>
         )}
         {status === 'locked' && (
           <div style={{ width: '100%', background: '#FEF3C7', color: '#92400E', borderRadius: '6px', padding: '5px', fontSize: '11px', fontWeight: '600', textAlign: 'center' }}>
@@ -197,29 +198,14 @@ export default function CourtPage() {
   return (
     <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
 
-      {/* Nav */}
-      <header style={{ background: '#fff', borderBottom: '0.5px solid #E2E8F0', padding: '0 24px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-          <div style={{ width: '30px', height: '30px', background: '#1B6B3A', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
-            🏟
-          </div>
-          <span style={{ fontSize: '16px', fontWeight: '600', color: '#0F172A' }}>
-            Arena<span style={{ color: '#1B6B3A' }}>Grade</span>
-          </span>
-        </a>
-        <a href="/auth" style={{ fontSize: '13px', background: '#1B6B3A', color: '#fff', padding: '7px 16px', borderRadius: '7px', textDecoration: 'none', fontWeight: '500' }}>
-          Sign in
-        </a>
-      </header>
+      <Navbar />
 
       <div style={{ maxWidth: '680px', margin: '0 auto', padding: '24px 16px 48px' }}>
 
-        {/* Back */}
         <a href="/" style={{ fontSize: '13px', color: '#1B6B3A', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '20px' }}>
-          ← Back to search
+          Back to search
         </a>
 
-        {/* Court Info Card */}
         <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '14px' }}>
           <div style={{ display: 'flex', gap: '14px', marginBottom: '16px' }}>
             <div style={{ width: '56px', height: '56px', background: '#ECFDF5', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', flexShrink: 0 }}>
@@ -239,7 +225,6 @@ export default function CourtPage() {
             </div>
           </div>
 
-          {/* Meta */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
             <span style={{ fontSize: '11px', background: '#F1F5F9', color: '#475569', padding: '4px 10px', borderRadius: '20px' }}>
               🕐 {court.operating_start.slice(0,5)} - {court.operating_end.slice(0,5)}
@@ -254,7 +239,6 @@ export default function CourtPage() {
             )}
           </div>
 
-          {/* Pricing */}
           <div style={{ borderTop: '0.5px solid #F1F5F9', paddingTop: '14px' }}>
             <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 8px' }}>PRICING</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -268,7 +252,6 @@ export default function CourtPage() {
           </div>
         </div>
 
-        {/* Date Picker */}
         <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '16px 20px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 2px' }}>SELECT DATE</p>
@@ -284,7 +267,6 @@ export default function CourtPage() {
           />
         </div>
 
-        {/* Legend */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
           {[
             { color: '#ECFDF5', border: '#6EE7B7', label: 'Available' },
@@ -299,7 +281,6 @@ export default function CourtPage() {
           ))}
         </div>
 
-        {/* Slots */}
         {slotsLoading ? (
           <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '48px', textAlign: 'center' }}>
             <p style={{ color: '#64748B', fontSize: '14px' }}>Loading slots...</p>
@@ -335,7 +316,6 @@ export default function CourtPage() {
                     </span>
                   </div>
 
-                  {/* Slot cards */}
                   <div style={{ display: 'flex', gap: '8px' }}>
                     {group.full_court && renderSlotCard(group.full_court, 'Full court', effectiveFCStatus)}
                     {group.half_a && renderSlotCard(group.half_a, 'Half court A')}
