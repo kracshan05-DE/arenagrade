@@ -36,6 +36,13 @@ interface Slot {
   status: string
   price_lkr: number
   lock_expires_at: string | null
+  blocked_reason?: string
+}
+
+interface GroupedSlot {
+  full_court?: Slot
+  half_a?: Slot
+  half_b?: Slot
 }
 
 export default function CourtPage() {
@@ -45,23 +52,16 @@ export default function CourtPage() {
   const [court, setCourt] = useState<Court | null>(null)
   const [slots, setSlots] = useState<Slot[]>([])
   const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date()
-    return today.toISOString().split('T')[0]
+    return new Date().toISOString().split('T')[0]
   })
   const [loading, setLoading] = useState(true)
   const [slotsLoading, setSlotsLoading] = useState(false)
 
-  // Load court details
   useEffect(() => {
     const loadCourt = async () => {
       const { data } = await supabase
         .from('courts')
-        .select(`
-          *,
-          locations (name, address),
-          sport_types (name),
-          court_pricing (tier_name, time_from, time_to, price_lkr, applies_to)
-        `)
+        .select(`*, locations (name, address), sport_types (name), court_pricing (tier_name, time_from, time_to, price_lkr, applies_to)`)
         .eq('id', courtId)
         .single()
       if (data) setCourt(data)
@@ -70,7 +70,6 @@ export default function CourtPage() {
     loadCourt()
   }, [courtId])
 
-  // Load slots for selected date
   useEffect(() => {
     if (!courtId || !selectedDate) return
     const loadSlots = async () => {
@@ -87,194 +86,271 @@ export default function CourtPage() {
     loadSlots()
   }, [courtId, selectedDate])
 
-  const getSlotStatusColor = (slot: Slot) => {
-    if (slot.status === 'booked') return 'bg-red-100 border-red-200 text-red-500 cursor-not-allowed'
-    if (slot.status === 'locked') return 'bg-yellow-100 border-yellow-200 text-yellow-600 cursor-not-allowed'
-    if (slot.status === 'blocked') return 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
-    return 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100 cursor-pointer'
-  }
-
-  const getSlotStatusLabel = (slot: Slot) => {
-    if (slot.status === 'booked') return 'Booked'
-    if (slot.status === 'locked') return 'Reserved'
-    if (slot.status === 'blocked') return 'Unavailable'
-    return 'Available'
-  }
-
-  const getCourtTypeLabel = (type: string) => {
-    if (type === 'full_court') return 'Full Court'
-    if (type === 'half_a') return 'Half Court A'
-    if (type === 'half_b') return 'Half Court B'
-    return type
-  }
-
-  // Get min date (today) and max date (30 days ahead)
   const today = new Date().toISOString().split('T')[0]
   const maxDate = new Date()
   maxDate.setDate(maxDate.getDate() + 30)
   const maxDateStr = maxDate.toISOString().split('T')[0]
 
-  // Group slots by time
-  const groupedSlots = slots.reduce((acc, slot) => {
+  // Group slots by time band
+  const timeGroups: Record<string, GroupedSlot> = {}
+  slots.forEach(slot => {
     const key = `${slot.start_time}-${slot.end_time}`
-    if (!acc[key]) acc[key] = []
-    acc[key].push(slot)
-    return acc
-  }, {} as Record<string, Slot[]>)
+    if (!timeGroups[key]) timeGroups[key] = {}
+    if (slot.court_type === 'full_court') timeGroups[key].full_court = slot
+    if (slot.court_type === 'half_a') timeGroups[key].half_a = slot
+    if (slot.court_type === 'half_b') timeGroups[key].half_b = slot
+  })
+
+  const isPeakSlot = (startTime: string) => {
+    if (!court) return false
+    const cutoff = court.half_court_cutoff || '14:00:00'
+    return startTime >= cutoff
+  }
+
+  // Determine effective status of full court considering half court bookings
+  const getEffectiveFullCourtStatus = (group: GroupedSlot): string => {
+    const fc = group.full_court
+    if (!fc) return 'na'
+    // If either half is booked or locked, full court is N/A
+    const halfABlocked = group.half_a && (group.half_a.status === 'booked' || group.half_a.status === 'locked')
+    const halfBBlocked = group.half_b && (group.half_b.status === 'booked' || group.half_b.status === 'locked')
+    if (halfABlocked || halfBBlocked) return 'na'
+    return fc.status
+  }
+
+  const getSlotStyle = (status: string): React.CSSProperties => {
+    switch (status) {
+      case 'available':
+        return { background: '#ECFDF5', border: '0.5px solid #6EE7B7', color: '#065F46' }
+      case 'locked':
+        return { background: '#FFFBEB', border: '0.5px solid #FCD34D', color: '#92400E' }
+      case 'booked':
+        return { background: '#F8FAFC', border: '0.5px solid #E2E8F0', color: '#94A3B8' }
+      case 'blocked':
+      case 'na':
+        return { background: '#F1F5F9', border: '0.5px solid #CBD5E1', color: '#94A3B8' }
+      default:
+        return { background: '#F1F5F9', border: '0.5px solid #CBD5E1', color: '#94A3B8' }
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'available': return 'Available'
+      case 'locked': return 'Reserved'
+      case 'booked': return 'Booked'
+      case 'blocked': return 'N/A'
+      case 'na': return 'N/A'
+      default: return 'N/A'
+    }
+  }
+
+  const renderSlotCard = (slot: Slot | undefined, label: string, effectiveStatus?: string) => {
+    const status = effectiveStatus || slot?.status || 'na'
+    const style = getSlotStyle(status)
+    const price = slot?.price_lkr
+
+    return (
+      <div style={{ ...style, borderRadius: '10px', padding: '12px', flex: 1 }}>
+        <p style={{ fontSize: '12px', fontWeight: '600', margin: '0 0 2px', color: style.color }}>{label}</p>
+        <p style={{ fontSize: '11px', margin: '0 0 8px', opacity: 0.75, color: style.color }}>{getStatusLabel(status)}</p>
+        {price && status !== 'na' && status !== 'blocked' && (
+          <p style={{ fontSize: '14px', fontWeight: '700', margin: '0 0 8px', color: status === 'available' ? '#1B6B3A' : style.color }}>
+            LKR {price.toLocaleString()}
+          </p>
+        )}
+        {status === 'available' && (
+          <button style={{ width: '100%', background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+            Book
+          </button>
+        )}
+        {status === 'locked' && (
+          <div style={{ width: '100%', background: '#FEF3C7', color: '#92400E', borderRadius: '6px', padding: '5px', fontSize: '11px', fontWeight: '600', textAlign: 'center' }}>
+            In progress
+          </div>
+        )}
+        {(status === 'booked' || status === 'na' || status === 'blocked') && (
+          <div style={{ width: '100%', background: 'rgba(0,0,0,0.05)', color: '#94A3B8', borderRadius: '6px', padding: '5px', fontSize: '11px', textAlign: 'center' }}>
+            {status === 'na' || status === 'blocked' ? 'N/A' : 'Booked'}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading court details...</p>
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#64748B', fontSize: '14px' }}>Loading...</p>
       </div>
     )
   }
 
   if (!court) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Court not found.</p>
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#64748B', fontSize: '14px' }}>Court not found.</p>
       </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
 
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <a href="/" className="text-2xl font-bold text-gray-900">
-            Arena<span className="text-green-600">Grade</span>
-          </a>
-          <a
-            href="/auth"
-            className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-700 transition"
-          >
-            Sign In
-          </a>
-        </div>
+      {/* Nav */}
+      <header style={{ background: '#fff', borderBottom: '0.5px solid #E2E8F0', padding: '0 24px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+          <div style={{ width: '30px', height: '30px', background: '#1B6B3A', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
+            🏟
+          </div>
+          <span style={{ fontSize: '16px', fontWeight: '600', color: '#0F172A' }}>
+            Arena<span style={{ color: '#1B6B3A' }}>Grade</span>
+          </span>
+        </a>
+        <a href="/auth" style={{ fontSize: '13px', background: '#1B6B3A', color: '#fff', padding: '7px 16px', borderRadius: '7px', textDecoration: 'none', fontWeight: '500' }}>
+          Sign in
+        </a>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div style={{ maxWidth: '680px', margin: '0 auto', padding: '24px 16px 48px' }}>
 
         {/* Back */}
-        <a href="/" className="text-green-600 text-sm font-medium hover:underline mb-6 inline-block">
-          Back to search
+        <a href="/" style={{ fontSize: '13px', color: '#1B6B3A', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '20px' }}>
+          ← Back to search
         </a>
 
-        {/* Court Info */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{court.name}</h1>
-              <p className="text-gray-500 mt-1">{court.locations.name}</p>
-              <p className="text-gray-400 text-sm">{court.locations.address}</p>
+        {/* Court Info Card */}
+        <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', gap: '14px', marginBottom: '16px' }}>
+            <div style={{ width: '56px', height: '56px', background: '#ECFDF5', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', flexShrink: 0 }}>
+              🏀
             </div>
-            <span className="bg-green-100 text-green-700 text-sm font-medium px-3 py-1 rounded-full">
-              {court.sport_types.name}
-            </span>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                <div>
+                  <h1 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px' }}>{court.name}</h1>
+                  <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 1px' }}>📍 {court.locations.name}</p>
+                  <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>{court.locations.address}</p>
+                </div>
+                <span style={{ fontSize: '11px', background: '#ECFDF5', color: '#065F46', padding: '4px 10px', borderRadius: '20px', fontWeight: '500', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {court.sport_types.name}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-6 mt-4 text-sm text-gray-500">
-            <span>Operating hours: {court.operating_start.slice(0,5)} - {court.operating_end.slice(0,5)}</span>
-            <span>Slot duration: {court.slot_duration_hrs} hours</span>
+          {/* Meta */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
+            <span style={{ fontSize: '11px', background: '#F1F5F9', color: '#475569', padding: '4px 10px', borderRadius: '20px' }}>
+              🕐 {court.operating_start.slice(0,5)} - {court.operating_end.slice(0,5)}
+            </span>
+            <span style={{ fontSize: '11px', background: '#F1F5F9', color: '#475569', padding: '4px 10px', borderRadius: '20px' }}>
+              {court.slot_duration_hrs}h slots
+            </span>
             {court.has_half_court && (
-              <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded-full text-xs">
-                Half court available before {court.half_court_cutoff.slice(0,5)}
+              <span style={{ fontSize: '11px', background: '#EFF6FF', color: '#1D4ED8', padding: '4px 10px', borderRadius: '20px' }}>
+                Half court before {court.half_court_cutoff?.slice(0,5)}
               </span>
             )}
           </div>
 
           {/* Pricing */}
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <p className="text-sm font-medium text-gray-700 mb-2">Pricing</p>
-            <div className="flex flex-wrap gap-3">
+          <div style={{ borderTop: '0.5px solid #F1F5F9', paddingTop: '14px' }}>
+            <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 8px' }}>PRICING</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {court.court_pricing.map((p, i) => (
-                <div key={i} className="bg-gray-50 rounded-xl px-4 py-2 text-sm">
-                  <span className="text-gray-500">{p.tier_name} ({p.time_from.slice(0,5)} - {p.time_to.slice(0,5)})</span>
-                  <span className="text-green-600 font-semibold ml-2">LKR {p.price_lkr.toLocaleString()}</span>
+                <div key={i} style={{ background: '#F8FAFC', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
+                  <span style={{ color: '#64748B' }}>{p.tier_name} ({p.time_from.slice(0,5)}-{p.time_to.slice(0,5)})</span>
+                  <span style={{ color: '#1B6B3A', fontWeight: '700', marginLeft: '6px' }}>LKR {p.price_lkr.toLocaleString()}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Date Selector */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Select Date</label>
+        {/* Date Picker */}
+        <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '16px 20px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 2px' }}>SELECT DATE</p>
+            <p style={{ fontSize: '13px', color: '#0F172A', margin: 0 }}>Choose a date to see available slots</p>
+          </div>
           <input
             type="date"
             value={selectedDate}
             min={today}
             max={maxDateStr}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+            style={{ border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '7px 10px', fontSize: '13px', color: '#0F172A', outline: 'none', background: '#fff' }}
           />
         </div>
 
-        {/* Slot Legend */}
-        <div className="flex items-center gap-4 mb-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-green-100 border border-green-200"></div>
-            <span className="text-gray-500">Available</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-yellow-100 border border-yellow-200"></div>
-            <span className="text-gray-500">Reserved</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-red-100 border border-red-200"></div>
-            <span className="text-gray-500">Booked</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-gray-100 border border-gray-200"></div>
-            <span className="text-gray-500">Unavailable</span>
-          </div>
+        {/* Legend */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+          {[
+            { color: '#ECFDF5', border: '#6EE7B7', label: 'Available' },
+            { color: '#FFFBEB', border: '#FCD34D', label: 'Reserved' },
+            { color: '#F8FAFC', border: '#E2E8F0', label: 'Booked' },
+            { color: '#F1F5F9', border: '#CBD5E1', label: 'N/A' },
+          ].map(item => (
+            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: item.color, border: `1px solid ${item.border}` }} />
+              <span style={{ fontSize: '11px', color: '#64748B' }}>{item.label}</span>
+            </div>
+          ))}
         </div>
 
         {/* Slots */}
         {slotsLoading ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">Loading slots...</p>
+          <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '48px', textAlign: 'center' }}>
+            <p style={{ color: '#64748B', fontSize: '14px' }}>Loading slots...</p>
           </div>
-        ) : slots.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-            <p className="text-gray-500 text-lg">No slots available for this date.</p>
-            <p className="text-gray-400 text-sm mt-2">Slots are generated when the admin sets them up for this date.</p>
+        ) : Object.keys(timeGroups).length === 0 ? (
+          <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '48px', textAlign: 'center' }}>
+            <div style={{ fontSize: '36px', marginBottom: '10px' }}>📅</div>
+            <p style={{ fontSize: '15px', fontWeight: '500', color: '#0F172A', margin: '0 0 4px' }}>No slots for this date</p>
+            <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Try a different date or check back later</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {Object.entries(groupedSlots).map(([timeKey, timeSlots]) => {
-              const [start, end] = timeKey.split('-')
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {Object.entries(timeGroups).map(([timeKey, group]) => {
+              const [start] = timeKey.split('-')
+              const isPeak = isPeakSlot(start)
+              const effectiveFCStatus = getEffectiveFullCourtStatus(group)
+
               return (
-                <div key={timeKey} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                  <p className="text-sm font-semibold text-gray-700 mb-3">
-                    {start.slice(0,5)} - {end.slice(0,5)}
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {timeSlots.map(slot => (
-                      <div
-                        key={slot.id}
-                        className={`border rounded-xl p-4 transition ${getSlotStatusColor(slot)}`}
-                      >
-                        <p className="font-medium text-sm">{getCourtTypeLabel(slot.court_type)}</p>
-                        <p className="text-xs mt-1">{getSlotStatusLabel(slot)}</p>
-                        <p className="font-bold mt-2">LKR {slot.price_lkr.toLocaleString()}</p>
-                        {slot.status === 'available' && (
-                          <button className="mt-3 w-full bg-green-600 text-white text-xs py-2 rounded-lg hover:bg-green-700 transition font-medium">
-                            Book
-                          </button>
-                        )}
+                <div key={timeKey} style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A' }}>
+                      {start.slice(0,5)} - {timeKey.split('-')[1].slice(0,5)}
+                    </span>
+                    <span style={{
+                      fontSize: '10px',
+                      padding: '2px 8px',
+                      borderRadius: '20px',
+                      fontWeight: '500',
+                      background: isPeak ? '#FEF3C7' : '#ECFDF5',
+                      color: isPeak ? '#92400E' : '#065F46'
+                    }}>
+                      {isPeak ? 'Peak' : 'Off-peak'}
+                    </span>
+                  </div>
+
+                  {/* Slot cards */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {group.full_court && renderSlotCard(group.full_court, 'Full court', effectiveFCStatus)}
+                    {group.half_a && renderSlotCard(group.half_a, 'Half court A')}
+                    {group.half_b && renderSlotCard(group.half_b, 'Half court B')}
+                    {!group.half_a && !group.half_b && !group.full_court && (
+                      <div style={{ flex: 1, background: '#F1F5F9', border: '0.5px solid #CBD5E1', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>N/A</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )
             })}
           </div>
         )}
-
       </div>
     </main>
   )
