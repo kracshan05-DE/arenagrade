@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import Navbar from '@/components/Navbar'
 
 interface SportType {
   id: string
@@ -126,26 +127,8 @@ export default function Home() {
   return (
     <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
 
-      {/* Nav */}
-      <header style={{ background: '#fff', borderBottom: '0.5px solid #E2E8F0', padding: '0 24px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ width: '30px', height: '30px', background: '#1B6B3A', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
-            🏟
-          </div>
-          <span style={{ fontSize: '16px', fontWeight: '600', color: '#0F172A' }}>
-            Arena<span style={{ color: '#1B6B3A' }}>Grade</span>
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <a href="/auth" style={{ fontSize: '13px', color: '#64748B', padding: '6px 12px', borderRadius: '7px', textDecoration: 'none' }}>
-            Sign in
-          </a>
-          <a href="/auth" style={{ fontSize: '13px', background: '#1B6B3A', color: '#fff', padding: '7px 16px', borderRadius: '7px', textDecoration: 'none', fontWeight: '500' }}>
-            Book now
-          </a>
-        </div>
-      </header>
-
+      <Navbar />
+      
       {/* Hero */}
       <section style={{ background: '#0D4A2A', padding: '52px 24px 88px', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, transparent 0, transparent 50%)', backgroundSize: '24px 24px' }} />
