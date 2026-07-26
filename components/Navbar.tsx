@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 export default function Navbar() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -15,10 +16,13 @@ export default function Navbar() {
         setUser(user)
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('full_name, phone')
+          .select('full_name, phone, role')
           .eq('id', user.id)
           .single()
-        if (profileData) setProfile(profileData)
+        if (profileData) {
+          setProfile(profileData)
+          if (profileData.role === 'super_admin') setIsAdmin(true)
+        }
       }
       setLoading(false)
     }
@@ -30,6 +34,7 @@ export default function Navbar() {
       } else {
         setUser(null)
         setProfile(null)
+        setIsAdmin(false)
       }
     })
 
@@ -93,6 +98,23 @@ export default function Navbar() {
               </p>
             </div>
           </div>
+          {isAdmin && (
+            <a
+              href="/admin"
+              style={{
+                fontSize: '12px',
+                background: '#0B2818',
+                color: '#4ADE80',
+                padding: '6px 12px',
+                borderRadius: '7px',
+                textDecoration: 'none',
+                fontWeight: '600',
+                border: '0.5px solid #1B6B3A',
+              }}
+            >
+              Admin panel
+            </a>
+          )}
           <button
             onClick={handleSignOut}
             style={{

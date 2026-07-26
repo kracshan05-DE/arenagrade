@@ -116,7 +116,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             Sign out
           </button>
           <a
-            href="/"
+            href="/" target="_blank"
             style={{ display: 'block', textAlign: 'center', marginTop: '6px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}
           >
             View website →
