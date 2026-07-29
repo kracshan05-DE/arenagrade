@@ -258,11 +258,7 @@ export default function LandingPage() {
             {!isMobile && (
               <div style={{ position: 'relative' }}>
                 <div style={{ borderRadius: '16px', overflow: 'hidden', aspectRatio: '4/3' }}>
-                  <img src="/praneeth.png" alt="Praneeth Udumalgala" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 20%' }} />
-                </div>
-                <div style={{ position: 'absolute', bottom: '-12px', left: '-12px', background: '#4ADE80', borderRadius: '10px', padding: '12px 16px' }}>
-                  <p style={{ fontSize: '16px', fontWeight: '800', color: '#0B2818', margin: '0 0 1px' }}>IIMPACT</p>
-                  <p style={{ fontSize: '10px', fontWeight: '600', color: '#0B2818', margin: 0, opacity: 0.7 }}>HOOP LAB ACADEMY</p>
+                  <img src="/praneeth.png" alt="Praneeth Udumalgala" style={{ width: '100%', height: '108%', objectFit: 'cover', objectPosition: 'center 20%' }} />
                 </div>
               </div>
             )}
