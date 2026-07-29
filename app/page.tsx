@@ -248,7 +248,7 @@ export default function LandingPage() {
                 With years on the national court and a track record of developing the next generation of Sri Lankan ballers, Praneeth brings unmatched credibility to every court ArenaGrade builds.
               </p>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {['National Player', 'Head Coach', 'IIMPACT HOOP LAB Founder', 'Court Builder'].map(badge => (
+                {['National Player', 'Head Coach', 'IIMPACT HOOP LAB Founder', 'Courts Builder'].map(badge => (
                   <span key={badge} style={{ fontSize: '11px', background: 'rgba(74,222,128,0.12)', color: '#4ADE80', padding: '4px 10px', borderRadius: '20px', fontWeight: '600', border: '0.5px solid rgba(74,222,128,0.3)' }}>{badge}</span>
                 ))}
               </div>
