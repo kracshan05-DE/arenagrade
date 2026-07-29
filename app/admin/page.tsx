@@ -17,15 +17,17 @@ interface RecentBooking {
   created_at: string
   total_lkr: number
   status: string
-  slots: {
+  user_id: string
+  slot_id: string
+  slots?: {
     slot_date: string
     start_time: string
     end_time: string
     court_type: string
   }
-  profiles: {
-    full_name: string
-    phone: string
+  profiles?: {
+    full_name: string | null
+    phone: string | null
   }
 }
 
@@ -56,10 +58,7 @@ export default function AdminDashboard() {
         supabase.from('bookings').select('total_lkr').eq('status', 'confirmed').gte('created_at', `${today}T00:00:00`),
         supabase.from('bookings').select('id').eq('status', 'cancellation_requested'),
         supabase.from('slots').select('id').eq('status', 'available').eq('slot_date', today),
-        supabase.from('bookings')
-          .select(`*, slots(slot_date, start_time, end_time, court_type), profiles(full_name, phone)`)
-          .order('created_at', { ascending: false })
-          .limit(5),
+        supabase.from('bookings').select('*').order('created_at', { ascending: false }).limit(5),
       ])
 
       setStats({
@@ -71,7 +70,19 @@ export default function AdminDashboard() {
         availableSlotsToday: availableSlots?.length || 0,
       })
 
-      if (recent) setRecentBookings(recent as any)
+      if (recent) {
+        const enriched = await Promise.all(
+          recent.map(async (booking: any) => {
+            const [{ data: slotData }, { data: profileData }] = await Promise.all([
+              supabase.from('slots').select('slot_date, start_time, end_time, court_type').eq('id', booking.slot_id).single(),
+              supabase.from('profiles').select('full_name, phone').eq('id', booking.user_id).single(),
+            ])
+            return { ...booking, slots: slotData, profiles: profileData }
+          })
+        )
+        setRecentBookings(enriched)
+      }
+
       setLoading(false)
     }
     loadData()
@@ -84,12 +95,12 @@ export default function AdminDashboard() {
   }
 
   const statCards = [
-    { label: "Today's Bookings", value: stats.todayBookings, icon: '📅', color: '#1B6B3A', bg: '#ECFDF5' },
-    { label: "Today's Revenue", value: `LKR ${stats.todayRevenue.toLocaleString()}`, icon: '💰', color: '#1D4ED8', bg: '#EFF6FF' },
-    { label: 'Total Bookings', value: stats.totalBookings, icon: '📊', color: '#7C3AED', bg: '#F5F3FF' },
-    { label: 'Total Revenue', value: `LKR ${stats.totalRevenue.toLocaleString()}`, icon: '💵', color: '#B45309', bg: '#FEF3C7' },
-    { label: 'Pending Cancellations', value: stats.pendingCancellations, icon: '⚠️', color: '#DC2626', bg: '#FEE2E2', alert: stats.pendingCancellations > 0 },
-    { label: 'Available Slots Today', value: stats.availableSlotsToday, icon: '🟢', color: '#047857', bg: '#ECFDF5' },
+    { label: "Today's Bookings",       value: stats.todayBookings,                          icon: '📅', color: '#1B6B3A', bg: '#ECFDF5' },
+    { label: "Today's Revenue",        value: `LKR ${stats.todayRevenue.toLocaleString()}`, icon: '💰', color: '#1D4ED8', bg: '#EFF6FF' },
+    { label: 'Total Bookings',         value: stats.totalBookings,                          icon: '📊', color: '#7C3AED', bg: '#F5F3FF' },
+    { label: 'Total Revenue',          value: `LKR ${stats.totalRevenue.toLocaleString()}`, icon: '💵', color: '#B45309', bg: '#FEF3C7' },
+    { label: 'Pending Cancellations',  value: stats.pendingCancellations,                   icon: '⚠️', color: '#DC2626', bg: '#FEE2E2', alert: stats.pendingCancellations > 0 },
+    { label: 'Available Slots Today',  value: stats.availableSlotsToday,                    icon: '🟢', color: '#047857', bg: '#ECFDF5' },
   ]
 
   return (
@@ -107,12 +118,12 @@ export default function AdminDashboard() {
       {loading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '28px' }}>
           {[...Array(6)].map((_, i) => (
-            <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '20px', height: '90px', animation: 'pulse 1.5s infinite' }} />
+            <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '20px', height: '90px' }} />
           ))}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '28px' }}>
-          {statCards.map(card => (
+          {statCards.map((card: any) => (
             <div key={card.label} style={{ background: '#fff', borderRadius: '12px', border: `0.5px solid ${card.alert ? '#FECACA' : '#E2E8F0'}`, padding: '18px', position: 'relative', overflow: 'hidden' }}>
               {card.alert && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: '#DC2626' }} />
@@ -142,15 +153,12 @@ export default function AdminDashboard() {
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {[
             { label: 'Add slots for today', href: '/admin/slots', icon: '🕐' },
-            { label: 'View all bookings', href: '/admin/bookings', icon: '📅' },
-            { label: 'Manage courts', href: '/admin/courts', icon: '🏀' },
-            { label: 'Add product', href: '/admin/products', icon: '🛒' },
+            { label: 'View all bookings',   href: '/admin/bookings', icon: '📅' },
+            { label: 'Manage courts',       href: '/admin/courts', icon: '🏀' },
+            { label: 'Add product',         href: '/admin/products', icon: '🛒' },
           ].map(action => (
-            <a
-              key={action.label}
-              href={action.href}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#F8FAFC', border: '0.5px solid #E2E8F0', borderRadius: '8px', padding: '8px 14px', fontSize: '13px', color: '#0F172A', textDecoration: 'none', fontWeight: '500' }}
-            >
+            <a key={action.label} href={action.href}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#F8FAFC', border: '0.5px solid #E2E8F0', borderRadius: '8px', padding: '8px 14px', fontSize: '13px', color: '#0F172A', textDecoration: 'none', fontWeight: '500' }}>
               <span>{action.icon}</span>
               {action.label}
             </a>
@@ -165,7 +173,9 @@ export default function AdminDashboard() {
           <a href="/admin/bookings" style={{ fontSize: '12px', color: '#1B6B3A', textDecoration: 'none', fontWeight: '500' }}>View all →</a>
         </div>
 
-        {recentBookings.length === 0 ? (
+        {loading ? (
+          <p style={{ color: '#64748B', fontSize: '13px', textAlign: 'center', padding: '20px' }}>Loading...</p>
+        ) : recentBookings.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '32px', color: '#94A3B8' }}>
             <div style={{ fontSize: '32px', marginBottom: '8px' }}>📅</div>
             <p style={{ fontSize: '13px', margin: 0 }}>No bookings yet</p>
@@ -180,11 +190,16 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: '0 0 2px' }}>
-                      {booking.profiles?.full_name || 'Customer'}
+                      {booking.profiles?.full_name || booking.profiles?.phone || 'Customer'}
                     </p>
-                    <p style={{ fontSize: '11px', color: '#64748B', margin: 0 }}>
-                      {booking.slots?.slot_date} · {booking.slots?.start_time?.slice(0,5)} - {booking.slots?.end_time?.slice(0,5)} · {COURT_TYPE_LABELS[booking.slots?.court_type] || ''}
+                    <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 1px' }}>
+                      📱 {booking.profiles?.phone || 'N/A'}
                     </p>
+                    {booking.slots && (
+                      <p style={{ fontSize: '11px', color: '#94A3B8', margin: 0 }}>
+                        {booking.slots.slot_date} · {booking.slots.start_time?.slice(0,5)} - {booking.slots.end_time?.slice(0,5)} · {COURT_TYPE_LABELS[booking.slots.court_type] || ''}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>

@@ -12,17 +12,26 @@ interface Booking {
   cancelled_by: string | null
   refund_amount_lkr: number | null
   payhere_payment_id: string | null
-  slots: {
-    slot_date: string
-    start_time: string
-    end_time: string
-    court_type: string
-    court_id: string
-  }
-  profiles: {
-    full_name: string
-    phone: string
-  }
+  user_id: string
+  slot_id: string
+  court_id: string
+}
+
+interface SlotInfo {
+  slot_date: string
+  start_time: string
+  end_time: string
+  court_type: string
+}
+
+interface ProfileInfo {
+  full_name: string | null
+  phone: string | null
+}
+
+interface EnrichedBooking extends Booking {
+  slot?: SlotInfo
+  profile?: ProfileInfo
 }
 
 const COURT_TYPE_LABELS: Record<string, string> = {
@@ -32,40 +41,61 @@ const COURT_TYPE_LABELS: Record<string, string> = {
 }
 
 const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string }> = {
-  confirmed:               { bg: '#ECFDF5', color: '#065F46', label: 'Confirmed' },
-  cancellation_requested:  { bg: '#FEE2E2', color: '#DC2626', label: 'Cancel Requested' },
-  cancelled:               { bg: '#F1F5F9', color: '#64748B', label: 'Cancelled' },
+  confirmed:              { bg: '#ECFDF5', color: '#065F46', label: 'Confirmed' },
+  cancellation_requested: { bg: '#FEE2E2', color: '#DC2626', label: 'Cancel Requested' },
+  cancelled:              { bg: '#F1F5F9', color: '#64748B', label: 'Cancelled' },
 }
 
 export default function AdminBookings() {
-  const [bookings, setBookings] = useState<Booking[]>([])
+  const [bookings, setBookings] = useState<EnrichedBooking[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [processing, setProcessing] = useState<string | null>(null)
   const [message, setMessage] = useState('')
 
-  useEffect(() => {
-    loadBookings()
-  }, [filter])
+  useEffect(() => { loadBookings() }, [filter])
 
   const loadBookings = async () => {
     setLoading(true)
+
+    // Step 1: Load bookings
     let query = supabase
       .from('bookings')
-      .select(`*, slots(slot_date, start_time, end_time, court_type, court_id), profiles(full_name, phone)`)
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (filter !== 'all') {
       query = query.eq('status', filter)
     }
 
-    const { data } = await query
-    if (data) setBookings(data as any)
+    const { data: bookingsData, error } = await query
+
+    if (error || !bookingsData) {
+      setLoading(false)
+      return
+    }
+
+    // Step 2: Load slots and profiles separately
+    const enriched: EnrichedBooking[] = await Promise.all(
+      bookingsData.map(async (booking) => {
+        const [{ data: slotData }, { data: profileData }] = await Promise.all([
+          supabase.from('slots').select('slot_date, start_time, end_time, court_type').eq('id', booking.slot_id).single(),
+          supabase.from('profiles').select('full_name, phone').eq('id', booking.user_id).single(),
+        ])
+        return {
+          ...booking,
+          slot: slotData || undefined,
+          profile: profileData || undefined,
+        }
+      })
+    )
+
+    setBookings(enriched)
     setLoading(false)
   }
 
-  const approveCancel = async (booking: Booking) => {
+  const approveCancel = async (booking: EnrichedBooking) => {
     setProcessing(booking.id)
     const refundAmount = booking.total_lkr
 
@@ -75,16 +105,12 @@ export default function AdminBookings() {
       cancelled_by: 'admin',
     }).eq('id', booking.id)
 
-    // Release the slot
-    if (booking.slots?.court_id) {
+    if (booking.slot_id) {
       await supabase.from('slots').update({
         status: 'available',
         locked_by: null,
         lock_expires_at: null,
-      }).eq('court_id', booking.slots.court_id)
-        .eq('slot_date', booking.slots.slot_date)
-        .eq('start_time', booking.slots.start_time)
-        .eq('court_type', booking.slots.court_type)
+      }).eq('id', booking.slot_id)
     }
 
     setMessage(`Cancellation approved. Full refund of LKR ${refundAmount.toLocaleString()} to be processed via PayHere.`)
@@ -94,20 +120,13 @@ export default function AdminBookings() {
 
   const rejectCancel = async (bookingId: string) => {
     setProcessing(bookingId)
-    await supabase.from('bookings').update({
-      status: 'confirmed',
-    }).eq('id', bookingId)
+    await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', bookingId)
     setMessage('Cancellation request rejected. Booking remains confirmed.')
     setProcessing(null)
     await loadBookings()
   }
 
-  const filterCounts = {
-    all: bookings.length,
-    confirmed: bookings.filter(b => b.status === 'confirmed').length,
-    cancellation_requested: bookings.filter(b => b.status === 'cancellation_requested').length,
-    cancelled: bookings.filter(b => b.status === 'cancelled').length,
-  }
+  const pendingCount = bookings.filter(b => b.status === 'cancellation_requested').length
 
   return (
     <div style={{ padding: '28px 32px' }}>
@@ -131,28 +150,24 @@ export default function AdminBookings() {
           { key: 'cancellation_requested', label: 'Cancel Requested' },
           { key: 'cancelled', label: 'Cancelled' },
         ].map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setFilter(tab.key)}
+          <button key={tab.key} onClick={() => setFilter(tab.key)}
             style={{
               background: filter === tab.key ? '#1B6B3A' : 'transparent',
               color: filter === tab.key ? '#fff' : '#64748B',
               border: 'none', borderRadius: '7px', padding: '6px 14px',
               fontSize: '12px', fontWeight: '600', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '5px',
-            }}
-          >
+            }}>
             {tab.label}
-            {tab.key === 'cancellation_requested' && filterCounts.cancellation_requested > 0 && (
+            {tab.key === 'cancellation_requested' && pendingCount > 0 && (
               <span style={{ background: '#DC2626', color: '#fff', borderRadius: '20px', padding: '1px 6px', fontSize: '10px' }}>
-                {filterCounts.cancellation_requested}
+                {pendingCount}
               </span>
             )}
           </button>
         ))}
       </div>
 
-      {/* Bookings list */}
       {loading ? (
         <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '48px', textAlign: 'center' }}>
           <p style={{ color: '#64748B' }}>Loading bookings...</p>
@@ -169,22 +184,20 @@ export default function AdminBookings() {
             const st = STATUS_CONFIG[booking.status] || STATUS_CONFIG.cancelled
             const isExpanded = expandedId === booking.id
             const isCancelRequest = booking.status === 'cancellation_requested'
+            const customerName = booking.profile?.full_name || booking.profile?.phone || 'Customer'
+            const customerPhone = booking.profile?.phone || 'N/A'
 
             return (
-              <div
-                key={booking.id}
-                style={{ background: '#fff', borderRadius: '12px', border: `0.5px solid ${isCancelRequest ? '#FECACA' : '#E2E8F0'}`, overflow: 'hidden' }}
-              >
+              <div key={booking.id} style={{ background: '#fff', borderRadius: '12px', border: `0.5px solid ${isCancelRequest ? '#FECACA' : '#E2E8F0'}`, overflow: 'hidden' }}>
+
                 {isCancelRequest && (
                   <div style={{ background: '#FEE2E2', padding: '6px 16px', borderBottom: '0.5px solid #FECACA' }}>
                     <p style={{ fontSize: '11px', color: '#DC2626', fontWeight: '600', margin: 0 }}>⚠️ Cancellation requested — action required</p>
                   </div>
                 )}
 
-                <div
-                  style={{ padding: '16px 20px', cursor: 'pointer' }}
-                  onClick={() => setExpandedId(isExpanded ? null : booking.id)}
-                >
+                <div style={{ padding: '16px 20px', cursor: 'pointer' }}
+                  onClick={() => setExpandedId(isExpanded ? null : booking.id)}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                       <div style={{ width: '40px', height: '40px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>
@@ -192,11 +205,16 @@ export default function AdminBookings() {
                       </div>
                       <div>
                         <p style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', margin: '0 0 3px' }}>
-                          {booking.profiles?.full_name || 'Customer'}
+                          {customerName}
                         </p>
-                        <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>
-                          📅 {booking.slots?.slot_date} · {booking.slots?.start_time?.slice(0,5)} - {booking.slots?.end_time?.slice(0,5)} · {COURT_TYPE_LABELS[booking.slots?.court_type] || ''}
+                        <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 2px' }}>
+                          📱 {customerPhone}
                         </p>
+                        {booking.slot && (
+                          <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>
+                            📅 {booking.slot.slot_date} · {booking.slot.start_time?.slice(0,5)} - {booking.slot.end_time?.slice(0,5)} · {COURT_TYPE_LABELS[booking.slot.court_type] || ''}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -213,7 +231,6 @@ export default function AdminBookings() {
                   </div>
                 </div>
 
-                {/* Expanded details */}
                 {isExpanded && (
                   <div style={{ borderTop: '0.5px solid #F1F5F9', padding: '16px 20px', background: '#F8FAFC' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
@@ -223,11 +240,13 @@ export default function AdminBookings() {
                       </div>
                       <div>
                         <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>PHONE</p>
-                        <p style={{ fontSize: '12px', color: '#0F172A', margin: 0 }}>{booking.profiles?.phone || 'N/A'}</p>
+                        <p style={{ fontSize: '12px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{customerPhone}</p>
                       </div>
                       <div>
                         <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>BOOKED AT</p>
-                        <p style={{ fontSize: '12px', color: '#0F172A', margin: 0 }}>{new Date(booking.created_at).toLocaleString('en-US', { timeZone: 'Asia/Colombo' })}</p>
+                        <p style={{ fontSize: '12px', color: '#0F172A', margin: 0 }}>
+                          {new Date(booking.created_at).toLocaleString('en-US', { timeZone: 'Asia/Colombo' })}
+                        </p>
                       </div>
                       {booking.payhere_payment_id && (
                         <div>
@@ -249,22 +268,15 @@ export default function AdminBookings() {
                       )}
                     </div>
 
-                    {/* Cancellation actions */}
                     {booking.status === 'cancellation_requested' && (
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          onClick={() => rejectCancel(booking.id)}
-                          disabled={processing === booking.id}
-                          style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-                        >
+                        <button onClick={() => rejectCancel(booking.id)} disabled={processing === booking.id}
+                          style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                           Reject — Keep Booking
                         </button>
-                        <button
-                          onClick={() => approveCancel(booking)}
-                          disabled={processing === booking.id}
-                          style={{ flex: 1, background: '#DC2626', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-                        >
-                          {processing === booking.id ? 'Processing...' : `Approve — Full Refund LKR ${booking.total_lkr?.toLocaleString()}`}
+                        <button onClick={() => approveCancel(booking)} disabled={processing === booking.id}
+                          style={{ flex: 1, background: '#DC2626', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+                          {processing === booking.id ? 'Processing...' : `Approve — Refund LKR ${booking.total_lkr?.toLocaleString()}`}
                         </button>
                       </div>
                     )}

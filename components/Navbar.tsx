@@ -92,12 +92,27 @@ export default function Navbar() {
             }}>
               {getInitials()}
             </div>
-            <div>
-              <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>
-                Hi, {getDisplayName().split(' ')[0]}
-              </p>
-            </div>
+            <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>
+              Hi, {getDisplayName().split(' ')[0]}
+            </p>
           </div>
+
+          <a
+            href="/my-bookings"
+            style={{
+              fontSize: '12px',
+              color: '#1B6B3A',
+              padding: '6px 12px',
+              borderRadius: '7px',
+              textDecoration: 'none',
+              fontWeight: '500',
+              background: '#ECFDF5',
+              border: '0.5px solid #D1FAE5',
+            }}
+          >
+            My Bookings
+          </a>
+
           {isAdmin && (
             <a
               href="/admin"
@@ -115,6 +130,7 @@ export default function Navbar() {
               Admin panel
             </a>
           )}
+
           <button
             onClick={handleSignOut}
             style={{
