@@ -227,7 +227,7 @@ export default function LandingPage() {
             {isMobile && (
               <div style={{ position: 'relative' }}>
                 <div style={{ borderRadius: '16px', overflow: 'hidden', aspectRatio: '16/9' }}>
-                  <img src="/praneeth.png" alt="Praneeth Udumalgala" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 20%' }} />
+                  <img src="/praneeth.png" alt="Praneeth Udumalagala" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 20%' }} />
                 </div>
               </div>
             )}
@@ -235,7 +235,7 @@ export default function LandingPage() {
             <div>
               <p style={{ fontSize: '12px', color: '#4ADE80', fontWeight: '700', letterSpacing: '0.1em', margin: '0 0 8px' }}>THE FOUNDER</p>
               <h2 style={{ fontSize: isMobile ? '26px' : '30px', fontWeight: '700', color: '#fff', margin: '0 0 14px', letterSpacing: '-0.02em', lineHeight: '1.2' }}>
-                Praneeth<br />Udumalgala
+                Praneeth<br />Udumalagala
               </h2>
               <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.65)', lineHeight: '1.8', margin: '0 0 14px' }}>
                 National basketball player, award-winning coach, and founder of the IIMPACT HOOP LAB Academy — Praneeth built ArenaGrade from a simple belief: every Sri Lankan player deserves a world-class court to play on.
@@ -254,7 +254,7 @@ export default function LandingPage() {
             {!isMobile && (
               <div style={{ position: 'relative' }}>
                 <div style={{ borderRadius: '16px', overflow: 'hidden', aspectRatio: '4/3' }}>
-                  <img src="/praneeth.png" alt="Praneeth Udumalgala" style={{ width: '100%', height: '108%', objectFit: 'cover', objectPosition: 'center 20%' }} />
+                  <img src="/praneeth.png" alt="Praneeth Udumalagala" style={{ width: '100%', height: '108%', objectFit: 'cover', objectPosition: 'center 20%' }} />
                 </div>
               </div>
             )}
