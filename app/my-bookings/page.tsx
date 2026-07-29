@@ -131,11 +131,13 @@ export default function MyBookingsPage() {
     return date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
   }
 
-  const isUpcoming = (dateStr: string) => {
-    return new Date(dateStr + 'T00:00:00') >= new Date(new Date().toDateString())
-  }
-
-  const upcomingBookings = bookings.filter(b => b.slot && isUpcoming(b.slot.slot_date) && b.status === 'confirmed')
+ const isUpcoming = (dateStr: string, startTime?: string) => {
+  const slotDateTime = new Date(`${dateStr}T${startTime || '00:00:00'}`)
+  const now = new Date()
+  const hoursUntilSlot = (slotDateTime.getTime() - now.getTime()) / (1000 * 60 * 60)
+  return hoursUntilSlot >= 24
+}
+  const upcomingBookings = bookings.filter(b => b.slot && isUpcoming(b.slot.slot_date, b.slot.start_time) && b.status === 'confirmed')
   const pastBookings = bookings.filter(b => !upcomingBookings.includes(b))
 
   const BookingCard = ({ booking }: { booking: EnrichedBooking }) => {
@@ -143,7 +145,7 @@ export default function MyBookingsPage() {
     const isExpanded = expandedId === booking.id
     const isCancelling = cancellingId === booking.id
     const canCancel = booking.status === 'confirmed'
-    const upcoming = booking.slot ? isUpcoming(booking.slot.slot_date) : false
+    const upcoming = booking.slot ? isUpcoming(booking.slot.slot_date, booking.slot.start_time) : false
 
     return (
       <div style={{ background: '#fff', borderRadius: '14px', border: `0.5px solid ${booking.status === 'cancellation_requested' ? '#FDE68A' : '#E2E8F0'}`, overflow: 'hidden', marginBottom: '10px' }}>
