@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  const redirect = requestUrl.searchParams.get('redirect') || '/'
 
   if (code) {
     const supabase = createClient(
@@ -13,5 +14,6 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code)
   }
 
-  return NextResponse.redirect(requestUrl.origin)
+  // Redirect to the original destination after sign in
+  return NextResponse.redirect(new URL(redirect, requestUrl.origin))
 }

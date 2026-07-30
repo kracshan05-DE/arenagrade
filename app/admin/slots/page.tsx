@@ -198,7 +198,7 @@ export default function AdminSlots() {
     grouped[key].push(slot)
   })
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' })
   const maxDate = new Date()
   maxDate.setDate(maxDate.getDate() + 60)
   const maxDateStr = maxDate.toISOString().split('T')[0]

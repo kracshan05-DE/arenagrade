@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 
@@ -13,13 +13,8 @@ interface Court {
   operating_start: string
   operating_end: string
   slot_duration_hrs: number
-  locations: {
-    name: string
-    address: string
-  }
-  sport_types: {
-    name: string
-  }
+  locations: { name: string; address: string }
+  sport_types: { name: string }
   court_pricing: {
     tier_name: string
     time_from: string
@@ -37,7 +32,6 @@ interface Slot {
   status: string
   price_lkr: number
   lock_expires_at: string | null
-  blocked_reason?: string
 }
 
 interface GroupedSlot {
@@ -48,6 +42,7 @@ interface GroupedSlot {
 
 export default function CourtPage() {
   const params = useParams()
+  const router = useRouter()
   const courtId = params.id as string
 
   const [court, setCourt] = useState<Court | null>(null)
@@ -57,22 +52,38 @@ export default function CourtPage() {
   })
   const [loading, setLoading] = useState(true)
   const [slotsLoading, setSlotsLoading] = useState(false)
+  const [user, setUser] = useState<any>(null)
+
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' })
+  const maxDate = new Date()
+  maxDate.setDate(maxDate.getDate() + 30)
+  const maxDateStr = maxDate.toISOString().split('T')[0]
 
   useEffect(() => {
     const loadCourt = async () => {
       const { data } = await supabase
         .from('courts')
-        .select(`*, locations (name, address), sport_types (name), court_pricing (tier_name, time_from, time_to, price_lkr, applies_to)`)
+        .select(`*, locations(name, address), sport_types(name), court_pricing(tier_name, time_from, time_to, price_lkr, applies_to)`)
         .eq('id', courtId)
         .single()
       if (data) setCourt(data)
       setLoading(false)
     }
     loadCourt()
+
+    // Check if user is logged in
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+    })
   }, [courtId])
 
   useEffect(() => {
     if (!courtId || !selectedDate) return
+    // Prevent loading slots for past dates
+    if (selectedDate < today) {
+      setSelectedDate(today)
+      return
+    }
     const loadSlots = async () => {
       setSlotsLoading(true)
       const { data } = await supabase
@@ -87,11 +98,7 @@ export default function CourtPage() {
     loadSlots()
   }, [courtId, selectedDate])
 
-  const today = new Date().toISOString().split('T')[0]
-  const maxDate = new Date()
-  maxDate.setDate(maxDate.getDate() + 30)
-  const maxDateStr = maxDate.toISOString().split('T')[0]
-
+  // Group slots by time
   const timeGroups: Record<string, GroupedSlot> = {}
   slots.forEach(slot => {
     const key = `${slot.start_time}-${slot.end_time}`
@@ -107,6 +114,7 @@ export default function CourtPage() {
     return startTime >= cutoff
   }
 
+  // Full court N/A if either half is booked/locked
   const getEffectiveFullCourtStatus = (group: GroupedSlot): string => {
     const fc = group.full_court
     if (!fc) return 'na'
@@ -116,31 +124,40 @@ export default function CourtPage() {
     return fc.status
   }
 
+  // Half courts N/A if full court is booked/locked
+  const getEffectiveHalfCourtStatus = (group: GroupedSlot, slot: Slot): string => {
+    const fc = group.full_court
+    const fullCourtBlocked = fc && (fc.status === 'booked' || fc.status === 'locked')
+    if (fullCourtBlocked) return 'na'
+    return slot.status
+  }
+
   const getSlotStyle = (status: string): React.CSSProperties => {
     switch (status) {
-      case 'available':
-        return { background: '#ECFDF5', border: '0.5px solid #6EE7B7', color: '#065F46' }
-      case 'locked':
-        return { background: '#FFFBEB', border: '0.5px solid #FCD34D', color: '#92400E' }
-      case 'booked':
-        return { background: '#F8FAFC', border: '0.5px solid #E2E8F0', color: '#94A3B8' }
-      case 'blocked':
-      case 'na':
-        return { background: '#F1F5F9', border: '0.5px solid #CBD5E1', color: '#94A3B8' }
-      default:
-        return { background: '#F1F5F9', border: '0.5px solid #CBD5E1', color: '#94A3B8' }
+      case 'available': return { background: '#ECFDF5', border: '0.5px solid #6EE7B7', color: '#065F46' }
+      case 'locked':   return { background: '#FFFBEB', border: '0.5px solid #FCD34D', color: '#92400E' }
+      case 'booked':   return { background: '#F8FAFC', border: '0.5px solid #E2E8F0', color: '#94A3B8' }
+      default:         return { background: '#F1F5F9', border: '0.5px solid #CBD5E1', color: '#94A3B8' }
     }
   }
 
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'available': return 'Available'
-      case 'locked': return 'Reserved'
-      case 'booked': return 'Booked'
-      case 'blocked': return 'N/A'
-      case 'na': return 'N/A'
-      default: return 'N/A'
+      case 'locked':   return 'Reserved'
+      case 'booked':   return 'Booked'
+      default:         return 'N/A'
     }
+  }
+
+  const handleBook = (slot: Slot) => {
+    if (!user) {
+      // Save the intended destination and redirect to auth
+      const destination = `/booking/${slot.id}`
+      router.push(`/auth?redirect=${encodeURIComponent(destination)}`)
+      return
+    }
+    router.push(`/booking/${slot.id}`)
   }
 
   const renderSlotCard = (slot: Slot | undefined, label: string, effectiveStatus?: string) => {
@@ -158,12 +175,12 @@ export default function CourtPage() {
           </p>
         )}
         {status === 'available' && slot && (
-          <a
-            href={`/booking/${slot.id}`}
-            style={{ width: '100%', background: '#1B6B3A', color: '#fff', borderRadius: '6px', padding: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', textDecoration: 'none', display: 'block', textAlign: 'center' }}
+          <button
+            onClick={() => handleBook(slot)}
+            style={{ width: '100%', background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
           >
             Book
-          </a>
+          </button>
         )}
         {status === 'locked' && (
           <div style={{ width: '100%', background: '#FEF3C7', color: '#92400E', borderRadius: '6px', padding: '5px', fontSize: '11px', fontWeight: '600', textAlign: 'center' }}>
@@ -172,7 +189,7 @@ export default function CourtPage() {
         )}
         {(status === 'booked' || status === 'na' || status === 'blocked') && (
           <div style={{ width: '100%', background: 'rgba(0,0,0,0.05)', color: '#94A3B8', borderRadius: '6px', padding: '5px', fontSize: '11px', textAlign: 'center' }}>
-            {status === 'na' || status === 'blocked' ? 'N/A' : 'Booked'}
+            {status === 'booked' ? 'Booked' : 'N/A'}
           </div>
         )}
       </div>
@@ -181,7 +198,7 @@ export default function CourtPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
         <p style={{ color: '#64748B', fontSize: '14px' }}>Loading...</p>
       </div>
     )
@@ -189,7 +206,7 @@ export default function CourtPage() {
 
   if (!court) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
         <p style={{ color: '#64748B', fontSize: '14px' }}>Court not found.</p>
       </div>
     )
@@ -197,15 +214,15 @@ export default function CourtPage() {
 
   return (
     <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
-
       <Navbar />
 
       <div style={{ maxWidth: '680px', margin: '0 auto', padding: '24px 16px 48px' }}>
 
         <a href="/" style={{ fontSize: '13px', color: '#1B6B3A', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '20px' }}>
-          Back to search
+          ← Back to search
         </a>
 
+        {/* Court Info */}
         <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '14px' }}>
           <div style={{ display: 'flex', gap: '14px', marginBottom: '16px' }}>
             <div style={{ width: '56px', height: '56px', background: '#ECFDF5', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', flexShrink: 0 }}>
@@ -252,6 +269,7 @@ export default function CourtPage() {
           </div>
         </div>
 
+        {/* Date Picker */}
         <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '16px 20px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 2px' }}>SELECT DATE</p>
@@ -262,11 +280,17 @@ export default function CourtPage() {
             value={selectedDate}
             min={today}
             max={maxDateStr}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value
+              // Prevent past dates
+              if (val < today) return
+              setSelectedDate(val)
+            }}
             style={{ border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '7px 10px', fontSize: '13px', color: '#0F172A', outline: 'none', background: '#fff' }}
           />
         </div>
 
+        {/* Legend */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
           {[
             { color: '#ECFDF5', border: '#6EE7B7', label: 'Available' },
@@ -281,6 +305,17 @@ export default function CourtPage() {
           ))}
         </div>
 
+        {/* Not logged in banner */}
+        {!user && (
+          <div style={{ background: '#EFF6FF', border: '0.5px solid #BFDBFE', borderRadius: '10px', padding: '12px 16px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            <p style={{ fontSize: '13px', color: '#1D4ED8', margin: 0 }}>Sign in to book a slot</p>
+            <a href="/auth" style={{ background: '#1D4ED8', color: '#fff', padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              Sign in
+            </a>
+          </div>
+        )}
+
+        {/* Slots */}
         {slotsLoading ? (
           <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '48px', textAlign: 'center' }}>
             <p style={{ color: '#64748B', fontSize: '14px' }}>Loading slots...</p>
@@ -305,10 +340,7 @@ export default function CourtPage() {
                       {start.slice(0,5)} - {timeKey.split('-')[1].slice(0,5)}
                     </span>
                     <span style={{
-                      fontSize: '10px',
-                      padding: '2px 8px',
-                      borderRadius: '20px',
-                      fontWeight: '500',
+                      fontSize: '10px', padding: '2px 8px', borderRadius: '20px', fontWeight: '500',
                       background: isPeak ? '#FEF3C7' : '#ECFDF5',
                       color: isPeak ? '#92400E' : '#065F46'
                     }}>
@@ -318,13 +350,8 @@ export default function CourtPage() {
 
                   <div style={{ display: 'flex', gap: '8px' }}>
                     {group.full_court && renderSlotCard(group.full_court, 'Full court', effectiveFCStatus)}
-                    {group.half_a && renderSlotCard(group.half_a, 'Half court A')}
-                    {group.half_b && renderSlotCard(group.half_b, 'Half court B')}
-                    {!group.half_a && !group.half_b && !group.full_court && (
-                      <div style={{ flex: 1, background: '#F1F5F9', border: '0.5px solid #CBD5E1', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>N/A</p>
-                      </div>
-                    )}
+                    {group.half_a && renderSlotCard(group.half_a, 'Half court A', getEffectiveHalfCourtStatus(group, group.half_a))}
+                    {group.half_b && renderSlotCard(group.half_b, 'Half court B', getEffectiveHalfCourtStatus(group, group.half_b))}
                   </div>
                 </div>
               )
