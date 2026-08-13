@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: 'Courts', href: '/admin/courts', icon: '🏀' },
   { label: 'Products', href: '/admin/products', icon: '🛒' },
   { label: 'Portfolio', href: '/admin/portfolio', icon: '🏟' },
+  { label: 'Recurring', href: '/admin/recurring', icon: '🔄' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
