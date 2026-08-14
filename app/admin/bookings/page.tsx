@@ -17,21 +17,20 @@ interface Booking {
   court_id: string
 }
 
-interface SlotInfo {
-  slot_date: string
-  start_time: string
-  end_time: string
-  court_type: string
-}
-
-interface ProfileInfo {
-  full_name: string | null
-  phone: string | null
-}
-
 interface EnrichedBooking extends Booking {
-  slot?: SlotInfo
-  profile?: ProfileInfo
+  slot?: {
+    slot_date: string
+    start_time: string
+    end_time: string
+    court_type: string
+  }
+  profile?: {
+    full_name: string | null
+    phone: string | null
+  }
+  court?: {
+    name: string
+  }
 }
 
 const COURT_TYPE_LABELS: Record<string, string> = {
@@ -47,61 +46,109 @@ const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string }
 }
 
 export default function AdminBookings() {
-  const [bookings, setBookings] = useState<EnrichedBooking[]>([])
+  const [allBookings, setAllBookings] = useState<EnrichedBooking[]>([])
+  const [filtered, setFiltered] = useState<EnrichedBooking[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [processing, setProcessing] = useState<string | null>(null)
   const [message, setMessage] = useState('')
 
-  useEffect(() => { loadBookings() }, [filter])
+  // Filters
+  const [searchPhone, setSearchPhone] = useState('')
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterDate, setFilterDate] = useState('')
+  const [filterCourt, setFilterCourt] = useState('all')
+  const [courts, setCourts] = useState<{ id: string; name: string }[]>([])
+
+  useEffect(() => {
+    loadBookings()
+    loadCourts()
+  }, [])
+
+  // Apply filters whenever data or filters change
+  useEffect(() => {
+    applyFilters()
+  }, [allBookings, searchPhone, filterStatus, filterDate, filterCourt])
+
+  const loadCourts = async () => {
+    const { data } = await supabase.from('courts').select('id, name').eq('is_active', true)
+    if (data) setCourts(data)
+  }
 
   const loadBookings = async () => {
     setLoading(true)
 
-    // Step 1: Load bookings
-    let query = supabase
+    const { data: bookingsData, error } = await supabase
       .from('bookings')
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (filter !== 'all') {
-      query = query.eq('status', filter)
-    }
+    if (error || !bookingsData) { setLoading(false); return }
 
-    const { data: bookingsData, error } = await query
-
-    if (error || !bookingsData) {
-      setLoading(false)
-      return
-    }
-
-    // Step 2: Load slots and profiles separately
     const enriched: EnrichedBooking[] = await Promise.all(
       bookingsData.map(async (booking) => {
-        const [{ data: slotData }, { data: profileData }] = await Promise.all([
+        const [{ data: slotData }, { data: profileData }, { data: courtData }] = await Promise.all([
           supabase.from('slots').select('slot_date, start_time, end_time, court_type').eq('id', booking.slot_id).single(),
           supabase.from('profiles').select('full_name, phone').eq('id', booking.user_id).single(),
+          supabase.from('courts').select('name').eq('id', booking.court_id).single(),
         ])
         return {
           ...booking,
           slot: slotData || undefined,
           profile: profileData || undefined,
+          court: courtData || undefined,
         }
       })
     )
 
-    setBookings(enriched)
+    setAllBookings(enriched)
     setLoading(false)
   }
 
+  const applyFilters = () => {
+    let result = [...allBookings]
+
+    // Phone search
+    if (searchPhone.trim()) {
+      result = result.filter(b =>
+        b.profile?.phone?.includes(searchPhone.trim()) ||
+        b.profile?.full_name?.toLowerCase().includes(searchPhone.trim().toLowerCase())
+      )
+    }
+
+    // Status filter
+    if (filterStatus !== 'all') {
+      result = result.filter(b => b.status === filterStatus)
+    }
+
+    // Date filter
+    if (filterDate) {
+      result = result.filter(b => b.slot?.slot_date === filterDate)
+    }
+
+    // Court filter
+    if (filterCourt !== 'all') {
+      result = result.filter(b => b.court_id === filterCourt)
+    }
+
+    setFiltered(result)
+  }
+
+  const clearFilters = () => {
+    setSearchPhone('')
+    setFilterStatus('all')
+    setFilterDate('')
+    setFilterCourt('all')
+  }
+
+  const hasActiveFilters = searchPhone || filterStatus !== 'all' || filterDate || filterCourt !== 'all'
+
   const approveCancel = async (booking: EnrichedBooking) => {
     setProcessing(booking.id)
-    const refundAmount = booking.total_lkr
 
     await supabase.from('bookings').update({
       status: 'cancelled',
-      refund_amount_lkr: refundAmount,
+      refund_amount_lkr: booking.total_lkr,
       cancelled_by: 'admin',
     }).eq('id', booking.id)
 
@@ -113,7 +160,7 @@ export default function AdminBookings() {
       }).eq('id', booking.slot_id)
     }
 
-    setMessage(`Cancellation approved. Full refund of LKR ${refundAmount.toLocaleString()} to be processed via PayHere.`)
+    setMessage(`Cancellation approved. Refund of LKR ${booking.total_lkr.toLocaleString()} to be processed via PayHere.`)
     setProcessing(null)
     await loadBookings()
   }
@@ -126,14 +173,51 @@ export default function AdminBookings() {
     await loadBookings()
   }
 
-  const pendingCount = bookings.filter(b => b.status === 'cancellation_requested').length
+  // Export to CSV
+  const exportCSV = () => {
+    const rows = [
+      ['Booking ID', 'Customer Name', 'Phone', 'Court', 'Date', 'Time', 'Court Type', 'Amount (LKR)', 'Status', 'Booked At'],
+      ...filtered.map(b => [
+        b.id,
+        b.profile?.full_name || 'N/A',
+        b.profile?.phone || 'N/A',
+        b.court?.name || 'N/A',
+        b.slot?.slot_date || 'N/A',
+        b.slot ? `${b.slot.start_time.slice(0,5)} - ${b.slot.end_time.slice(0,5)}` : 'N/A',
+        COURT_TYPE_LABELS[b.slot?.court_type || ''] || 'N/A',
+        b.total_lkr,
+        b.status,
+        new Date(b.created_at).toLocaleString('en-US', { timeZone: 'Asia/Colombo' }),
+      ])
+    ]
+
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `arenagrade-bookings-${new Date().toLocaleDateString('en-CA')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const pendingCount = allBookings.filter(b => b.status === 'cancellation_requested').length
 
   return (
     <div style={{ padding: '28px 32px' }}>
 
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px' }}>Bookings</h1>
-        <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Manage all court bookings and cancellation requests</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <div>
+          <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px' }}>Bookings</h1>
+          <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>
+            {allBookings.length} total · {filtered.length} shown
+            {hasActiveFilters && ' (filtered)'}
+          </p>
+        </div>
+        <button onClick={exportCSV}
+          style={{ background: '#F8FAFC', color: '#475569', border: '0.5px solid #E2E8F0', borderRadius: '8px', padding: '8px 14px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          📥 Export CSV
+        </button>
       </div>
 
       {message && (
@@ -142,45 +226,128 @@ export default function AdminBookings() {
         </div>
       )}
 
-      {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', background: '#fff', border: '0.5px solid #E2E8F0', borderRadius: '10px', padding: '4px', width: 'fit-content' }}>
-        {[
-          { key: 'all', label: 'All' },
-          { key: 'confirmed', label: 'Confirmed' },
-          { key: 'cancellation_requested', label: 'Cancel Requested' },
-          { key: 'cancelled', label: 'Cancelled' },
-        ].map(tab => (
-          <button key={tab.key} onClick={() => setFilter(tab.key)}
-            style={{
-              background: filter === tab.key ? '#1B6B3A' : 'transparent',
-              color: filter === tab.key ? '#fff' : '#64748B',
-              border: 'none', borderRadius: '7px', padding: '6px 14px',
-              fontSize: '12px', fontWeight: '600', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '5px',
-            }}>
-            {tab.label}
-            {tab.key === 'cancellation_requested' && pendingCount > 0 && (
-              <span style={{ background: '#DC2626', color: '#fff', borderRadius: '20px', padding: '1px 6px', fontSize: '10px' }}>
-                {pendingCount}
+      {/* Pending cancellations alert */}
+      {pendingCount > 0 && (
+        <div style={{ background: '#FEE2E2', border: '0.5px solid #FECACA', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <p style={{ fontSize: '13px', color: '#DC2626', fontWeight: '600', margin: 0 }}>
+            ⚠️ {pendingCount} cancellation request{pendingCount > 1 ? 's' : ''} need your attention
+          </p>
+          <button onClick={() => setFilterStatus('cancellation_requested')}
+            style={{ background: '#DC2626', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 12px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+            View now
+          </button>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '16px 20px', marginBottom: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '10px', alignItems: 'end' }}>
+
+          {/* Phone/name search */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>SEARCH</label>
+            <input
+              type="text"
+              value={searchPhone}
+              onChange={e => setSearchPhone(e.target.value)}
+              placeholder="Phone or name..."
+              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', color: '#0F172A' }}
+            />
+          </div>
+
+          {/* Date filter */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>SLOT DATE</label>
+            <input
+              type="date"
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', color: filterDate ? '#0F172A' : '#94A3B8', background: '#fff' }}
+            />
+          </div>
+
+          {/* Status filter */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>STATUS</label>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff', color: '#0F172A' }}>
+              <option value="all">All statuses</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="cancellation_requested">Cancel Requested</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          {/* Court filter */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>COURT</label>
+            <select value={filterCourt} onChange={e => setFilterCourt(e.target.value)}
+              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff', color: '#0F172A' }}>
+              <option value="all">All courts</option>
+              {courts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+
+          {/* Clear filters */}
+          <button
+            onClick={clearFilters}
+            disabled={!hasActiveFilters}
+            style={{ background: hasActiveFilters ? '#FEE2E2' : '#F8FAFC', color: hasActiveFilters ? '#DC2626' : '#94A3B8', border: `0.5px solid ${hasActiveFilters ? '#FECACA' : '#E2E8F0'}`, borderRadius: '8px', padding: '8px 14px', fontSize: '13px', fontWeight: '600', cursor: hasActiveFilters ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}>
+            Clear
+          </button>
+        </div>
+
+        {/* Active filter summary */}
+        {hasActiveFilters && (
+          <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {searchPhone && (
+              <span style={{ fontSize: '11px', background: '#EFF6FF', color: '#1D4ED8', padding: '3px 10px', borderRadius: '20px', fontWeight: '500' }}>
+                Search: "{searchPhone}"
               </span>
             )}
-          </button>
-        ))}
+            {filterDate && (
+              <span style={{ fontSize: '11px', background: '#EFF6FF', color: '#1D4ED8', padding: '3px 10px', borderRadius: '20px', fontWeight: '500' }}>
+                Date: {filterDate}
+              </span>
+            )}
+            {filterStatus !== 'all' && (
+              <span style={{ fontSize: '11px', background: '#EFF6FF', color: '#1D4ED8', padding: '3px 10px', borderRadius: '20px', fontWeight: '500' }}>
+                Status: {STATUS_CONFIG[filterStatus]?.label}
+              </span>
+            )}
+            {filterCourt !== 'all' && (
+              <span style={{ fontSize: '11px', background: '#EFF6FF', color: '#1D4ED8', padding: '3px 10px', borderRadius: '20px', fontWeight: '500' }}>
+                Court: {courts.find(c => c.id === filterCourt)?.name}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* Bookings list */}
       {loading ? (
         <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '48px', textAlign: 'center' }}>
           <p style={{ color: '#64748B' }}>Loading bookings...</p>
         </div>
-      ) : bookings.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '48px', textAlign: 'center' }}>
           <div style={{ fontSize: '36px', marginBottom: '10px' }}>📅</div>
-          <p style={{ fontSize: '15px', fontWeight: '500', color: '#0F172A', margin: '0 0 4px' }}>No bookings found</p>
-          <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Bookings will appear here once customers start booking</p>
+          <p style={{ fontSize: '15px', fontWeight: '500', color: '#0F172A', margin: '0 0 4px' }}>
+            {hasActiveFilters ? 'No bookings match your filters' : 'No bookings yet'}
+          </p>
+          <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 12px' }}>
+            {hasActiveFilters ? 'Try adjusting your search or filters' : 'Bookings will appear here once customers start booking'}
+          </p>
+          {hasActiveFilters && (
+            <button onClick={clearFilters}
+              style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+              Clear filters
+            </button>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {bookings.map(booking => {
+          {filtered.map(booking => {
             const st = STATUS_CONFIG[booking.status] || STATUS_CONFIG.cancelled
             const isExpanded = expandedId === booking.id
             const isCancelRequest = booking.status === 'cancellation_requested'
@@ -204,15 +371,11 @@ export default function AdminBookings() {
                         🏀
                       </div>
                       <div>
-                        <p style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', margin: '0 0 3px' }}>
-                          {customerName}
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 2px' }}>
-                          📱 {customerPhone}
-                        </p>
+                        <p style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', margin: '0 0 2px' }}>{customerName}</p>
+                        <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 2px' }}>📱 {customerPhone}</p>
                         {booking.slot && (
                           <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>
-                            📅 {booking.slot.slot_date} · {booking.slot.start_time?.slice(0,5)} - {booking.slot.end_time?.slice(0,5)} · {COURT_TYPE_LABELS[booking.slot.court_type] || ''}
+                            📅 {booking.slot.slot_date} · {booking.slot.start_time?.slice(0,5)} - {booking.slot.end_time?.slice(0,5)} · {COURT_TYPE_LABELS[booking.slot.court_type] || ''} · {booking.court?.name || ''}
                           </p>
                         )}
                       </div>

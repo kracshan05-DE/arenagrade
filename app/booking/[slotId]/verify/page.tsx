@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
+
 export default function VerifyPage() {
   const params = useParams()
   const router = useRouter()
@@ -17,6 +18,7 @@ export default function VerifyPage() {
   const [error, setError] = useState('')
   const [resendCooldown, setResendCooldown] = useState(0)
   const [phoneVerified, setPhoneVerified] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
     const init = async () => {
@@ -27,7 +29,6 @@ export default function VerifyPage() {
       }
       setUser(currentUser)
 
-      // Check if phone already verified
       const { data: profile } = await supabase
         .from('profiles')
         .select('phone, phone_verified')
@@ -36,23 +37,48 @@ export default function VerifyPage() {
 
       if (profile?.phone_verified) {
         setPhoneVerified(true)
-        // Already verified — go straight to payment
         router.push(`/booking/${slotId}/payment`)
+        return
       }
+
+      setPageLoading(false)
     }
     init()
   }, [slotId, router])
 
   useEffect(() => {
     if (resendCooldown <= 0) return
-    const timer = setInterval(() => {
-      setResendCooldown(prev => prev - 1)
-    }, 1000)
+    const timer = setInterval(() => setResendCooldown(prev => prev - 1), 1000)
     return () => clearInterval(timer)
   }, [resendCooldown])
 
-  const validatePhone = (num: string) => {
-    return /^07[0-9]{8}$/.test(num)
+  const validatePhone = (num: string) => /^07[0-9]{8}$/.test(num)
+
+  // Rate limit check — max 3 OTP requests per phone per 10 minutes
+  const checkOtpRateLimit = async (phoneNumber: string): Promise<{ allowed: boolean; waitMinutes?: number }> => {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+
+    const { data: recentOtps } = await supabase
+      .from('otp_verifications')
+      .select('created_at')
+      .eq('phone', phoneNumber)
+      .gte('created_at', tenMinutesAgo)
+      .order('created_at', { ascending: false })
+
+    if (!recentOtps || recentOtps.length < 3) return { allowed: true }
+
+    // Find when the oldest of the 3 was sent — rate limit resets after that
+    const oldestInWindow = new Date(recentOtps[recentOtps.length - 1].created_at)
+    const resetAt = new Date(oldestInWindow.getTime() + 10 * 60 * 1000)
+    const waitMs = resetAt.getTime() - Date.now()
+    const waitMinutes = Math.ceil(waitMs / 60000)
+
+    return { allowed: false, waitMinutes }
+  }
+
+  // Rate limit check — max 5 wrong OTP attempts before lockout
+  const checkAttemptLimit = async (otpRecordId: string, currentAttempts: number): Promise<boolean> => {
+    return currentAttempts < 5
   }
 
   const sendOtp = async () => {
@@ -64,16 +90,22 @@ export default function VerifyPage() {
 
     setLoading(true)
 
-    // Generate 6-digit OTP
+    // Rate limit check
+    const rateCheck = await checkOtpRateLimit(phone)
+    if (!rateCheck.allowed) {
+      setError(`Too many OTP requests. Please wait ${rateCheck.waitMinutes} minute${rateCheck.waitMinutes === 1 ? '' : 's'} before requesting another code.`)
+      setLoading(false)
+      return
+    }
+
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
 
-    // Store OTP in database
     const { error: otpError } = await supabase
       .from('otp_verifications')
       .insert({
         user_id: user.id,
-        phone: phone,
+        phone,
         otp_code: otpCode,
         expires_at: expiresAt,
         verified: false,
@@ -86,8 +118,7 @@ export default function VerifyPage() {
       return
     }
 
-    // In production: call Notify.lk API here to send SMS
-    // For development: show OTP in console
+    // DEV MODE — replace with Notify.lk when API key is ready
     console.log(`OTP for ${phone}: ${otpCode}`)
     alert(`[DEV MODE] Your OTP is: ${otpCode}\n\nIn production this will be sent via SMS.`)
 
@@ -105,7 +136,6 @@ export default function VerifyPage() {
 
     setLoading(true)
 
-    // Get latest OTP for this user
     const { data: otpRecord } = await supabase
       .from('otp_verifications')
       .select('*')
@@ -129,44 +159,49 @@ export default function VerifyPage() {
       return
     }
 
-    // Check attempts
-    if (otpRecord.attempts >= 3) {
+    // Check attempt limit — max 5 attempts
+    if (otpRecord.attempts >= 5) {
       setError('Too many incorrect attempts. Please request a new code.')
       setLoading(false)
       return
     }
 
-    // Check OTP
+    // Wrong OTP
     if (otpRecord.otp_code !== otp) {
-      // Increment attempts
+      const attemptsLeft = 4 - otpRecord.attempts
+
       await supabase
         .from('otp_verifications')
         .update({ attempts: otpRecord.attempts + 1 })
         .eq('id', otpRecord.id)
 
-      setError(`Incorrect code. ${2 - otpRecord.attempts} attempt${2 - otpRecord.attempts === 1 ? '' : 's'} remaining.`)
+      if (attemptsLeft <= 0) {
+        setError('Too many incorrect attempts. Please request a new code.')
+      } else {
+        setError(`Incorrect code. ${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining.`)
+      }
+
       setLoading(false)
       return
     }
 
-    // OTP correct — mark as verified
+    // OTP correct — mark verified
     await supabase
       .from('otp_verifications')
       .update({ verified: true })
       .eq('id', otpRecord.id)
 
-    // Update user profile
+    // Update profile
     await supabase
       .from('profiles')
-      .update({ phone: phone, phone_verified: true })
+      .update({ phone, phone_verified: true })
       .eq('id', user.id)
 
     setLoading(false)
-    // Navigate to payment
     router.push(`/booking/${slotId}/payment`)
   }
 
-  if (phoneVerified) {
+  if (pageLoading || phoneVerified) {
     return (
       <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
         <p style={{ color: '#64748B', fontSize: '14px' }}>Redirecting to payment...</p>
@@ -176,7 +211,6 @@ export default function VerifyPage() {
 
   return (
     <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
-
       <Navbar />
 
       <div style={{ maxWidth: '440px', margin: '48px auto', padding: '0 16px 48px' }}>
@@ -210,34 +244,26 @@ export default function VerifyPage() {
                 </div>
                 <h1 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', margin: '0 0 6px' }}>Verify your phone number</h1>
                 <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>
-                  We need your mobile number so we can send your booking confirmation and contact you if needed
+                  We need your mobile number so we can send your booking confirmation
                 </p>
               </div>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>
-                  Mobile number
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid #CBD5E1', borderRadius: '8px', overflow: 'hidden', background: '#fff' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>Mobile number</label>
+                <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid #CBD5E1', borderRadius: '8px', overflow: 'hidden' }}>
                   <div style={{ padding: '10px 12px', background: '#F8FAFC', borderRight: '0.5px solid #CBD5E1', fontSize: '13px', color: '#64748B', whiteSpace: 'nowrap' }}>
                     🇱🇰 +94
                   </div>
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '').slice(0, 10)
-                      setPhone(val)
-                      setError('')
-                    }}
+                    onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setError('') }}
                     placeholder="07XXXXXXXX"
                     maxLength={10}
                     style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 12px', fontSize: '14px', color: '#0F172A', background: 'transparent' }}
                   />
                 </div>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '5px 0 0' }}>
-                  Must start with 07 and be 10 digits
-                </p>
+                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '5px 0 0' }}>Must start with 07 and be 10 digits</p>
               </div>
 
               {error && (
@@ -251,8 +277,13 @@ export default function VerifyPage() {
                 disabled={loading || phone.length < 10}
                 style={{ width: '100%', background: loading || phone.length < 10 ? '#94A3B8' : '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '14px', fontWeight: '600', cursor: loading || phone.length < 10 ? 'not-allowed' : 'pointer' }}
               >
-                {loading ? 'Sending...' : 'Send verification code'}
+                {loading ? 'Checking...' : 'Send verification code'}
               </button>
+
+              {/* Rate limit info */}
+              <p style={{ textAlign: 'center', fontSize: '11px', color: '#94A3B8', marginTop: '12px', marginBottom: 0 }}>
+                Maximum 3 OTP requests per 10 minutes
+              </p>
             </>
           ) : (
             <>
@@ -267,17 +298,11 @@ export default function VerifyPage() {
               </div>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>
-                  6-digit code
-                </label>
+                <label style={{ display: 'block', fontSize: '12px', color: '#64748B', fontWeight: '500', marginBottom: '6px' }}>6-digit code</label>
                 <input
                   type="text"
                   value={otp}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '').slice(0, 6)
-                    setOtp(val)
-                    setError('')
-                  }}
+                  onChange={e => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setError('') }}
                   placeholder="000000"
                   maxLength={6}
                   style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '12px', fontSize: '22px', fontWeight: '700', color: '#0F172A', outline: 'none', textAlign: 'center', letterSpacing: '0.3em', boxSizing: 'border-box' }}
@@ -318,9 +343,8 @@ export default function VerifyPage() {
         </div>
 
         <p style={{ textAlign: 'center', fontSize: '11px', color: '#94A3B8', marginTop: '16px' }}>
-          🔒 Your number is only used for booking confirmations and emergencies
+          🔒 Your number is only used for booking confirmations
         </p>
-
       </div>
     </main>
   )

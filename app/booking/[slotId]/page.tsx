@@ -167,6 +167,14 @@ export default function BookingPage() {
     if (lockAttempted.current || locking) return
     lockAttempted.current = true
 
+    const { checkSlotLockRateLimit } = await import('@/lib/rateLimitHelper')
+    const rateCheck = await checkSlotLockRateLimit(user.id)
+    if (!rateCheck.allowed) {
+      setError(rateCheck.message || 'Too many reservations. Please complete existing bookings first.')
+      lockAttempted.current = false
+      return
+    }
+
     if (!slot || !user) return
     setLocking(true)
     setError('')
