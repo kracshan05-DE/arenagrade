@@ -15,6 +15,12 @@ interface Slot {
   price_lkr: number; internal_reason?: string
 }
 
+interface GroupedSlots {
+  full_court?: Slot
+  half_a?: Slot
+  half_b?: Slot
+}
+
 const COURT_TYPE_LABELS: Record<string, string> = {
   full_court: 'Full Court', half_a: 'Half Court A', half_b: 'Half Court B',
 }
@@ -24,6 +30,7 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }
   locked:    { bg: '#FFFBEB', color: '#92400E', label: 'Reserved' },
   booked:    { bg: '#EFF6FF', color: '#1D4ED8', label: 'Booked' },
   blocked:   { bg: '#F1F5F9', color: '#64748B', label: 'Blocked' },
+  na:        { bg: '#F8FAFC', color: '#94A3B8', label: 'N/A' },
 }
 
 export default function AdminSlots() {
@@ -55,7 +62,11 @@ export default function AdminSlots() {
 
   const loadSlots = async () => {
     setLoading(true)
-    const { data } = await supabase.from('slots').select('*').eq('court_id', selectedCourt).eq('slot_date', selectedDate).order('start_time')
+    const { data } = await supabase
+      .from('slots').select('*')
+      .eq('court_id', selectedCourt)
+      .eq('slot_date', selectedDate)
+      .order('start_time')
     if (data) setSlots(data)
     setLoading(false)
   }
@@ -105,12 +116,7 @@ export default function AdminSlots() {
   const blockSlot = async (slotId: string) => {
     const reason = blockType === 'iimpact' ? 'IIMPACT Practice' : blockReason
     if (!reason.trim()) { setMessage('Please enter a reason.'); return }
-
-    await supabase.from('slots').update({
-      status: 'blocked',
-      internal_reason: reason,
-    }).eq('id', slotId)
-
+    await supabase.from('slots').update({ status: 'blocked', internal_reason: reason }).eq('id', slotId)
     setBlockingSlotId('')
     setBlockReason('')
     await loadSlots()
@@ -128,17 +134,163 @@ export default function AdminSlots() {
     setMessage('Unbooked slots deleted.')
   }
 
-  const grouped: Record<string, Slot[]> = {}
+  // Group slots by time
+  const grouped: Record<string, GroupedSlots> = {}
   slots.forEach(slot => {
     const key = `${slot.start_time}-${slot.end_time}`
-    if (!grouped[key]) grouped[key] = []
-    grouped[key].push(slot)
+    if (!grouped[key]) grouped[key] = {}
+    if (slot.court_type === 'full_court') grouped[key].full_court = slot
+    if (slot.court_type === 'half_a') grouped[key].half_a = slot
+    if (slot.court_type === 'half_b') grouped[key].half_b = slot
   })
+
+  // Determine effective display status for admin view
+  const getEffectiveStatus = (group: GroupedSlots, courtType: string): { status: string; autoNa: boolean } => {
+    const slot = group[courtType as keyof GroupedSlots]
+    if (!slot) return { status: 'na', autoNa: false }
+
+    const BLOCKING = ['booked', 'locked', 'blocked']
+
+    if (courtType === 'full_court') {
+      const halfABlocked = group.half_a && BLOCKING.includes(group.half_a.status)
+      const halfBBlocked = group.half_b && BLOCKING.includes(group.half_b.status)
+      if (halfABlocked || halfBBlocked) return { status: 'na', autoNa: true }
+    }
+
+    if (courtType === 'half_a' || courtType === 'half_b') {
+      const fcBlocked = group.full_court && BLOCKING.includes(group.full_court.status)
+      if (fcBlocked) return { status: 'na', autoNa: true }
+    }
+
+    return { status: slot.status, autoNa: false }
+  }
 
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' })
   const maxDate = new Date()
   maxDate.setDate(maxDate.getDate() + 60)
   const maxDateStr = maxDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' })
+
+  const renderSlotCard = (group: GroupedSlots, courtType: string) => {
+    const slot = group[courtType as keyof GroupedSlots]
+    if (!slot) return null
+
+    const { status: effectiveStatus, autoNa } = getEffectiveStatus(group, courtType)
+    const st = STATUS_STYLES[effectiveStatus] || STATUS_STYLES.na
+    const isBlocking = blockingSlotId === slot.id
+    const actualStatus = slot.status
+
+    return (
+      <div key={slot.id} style={{ flex: 1, minWidth: '180px', background: st.bg, border: `0.5px solid ${st.color}30`, borderRadius: '10px', padding: '12px', position: 'relative' }}>
+
+        {/* Auto N/A badge */}
+        {autoNa && (
+          <div style={{ position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)', background: '#F1F5F9', border: '0.5px solid #CBD5E1', borderRadius: '20px', padding: '2px 8px', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '9px', color: '#64748B', fontWeight: '600' }}>AUTO N/A</span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <p style={{ fontSize: '12px', fontWeight: '700', color: '#0F172A', margin: 0 }}>
+            {COURT_TYPE_LABELS[courtType]}
+          </p>
+          <span style={{ fontSize: '10px', background: st.bg, color: st.color, padding: '2px 7px', borderRadius: '20px', border: `0.5px solid ${st.color}50`, fontWeight: '600' }}>
+            {autoNa ? 'N/A' : st.label}
+          </span>
+        </div>
+
+        <p style={{ fontSize: '13px', fontWeight: '700', color: '#1B6B3A', margin: '0 0 4px' }}>
+          LKR {slot.price_lkr.toLocaleString()}
+        </p>
+
+        {slot.internal_reason && (
+          <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 8px', fontStyle: 'italic' }}>
+            📌 {slot.internal_reason}
+          </p>
+        )}
+
+        {autoNa && (
+          <div style={{ background: '#F1F5F9', borderRadius: '6px', padding: '6px 8px', marginBottom: '4px' }}>
+            <p style={{ fontSize: '10px', color: '#64748B', margin: 0, lineHeight: '1.4' }}>
+              {courtType === 'full_court'
+                ? '⚠️ Half court is blocked — full court auto N/A for customers'
+                : '⚠️ Full court is blocked — half court auto N/A for customers'}
+            </p>
+          </div>
+        )}
+
+        {/* Actions — only show for actual slot status, not auto-NA */}
+        {!autoNa && actualStatus === 'available' && (
+          <div>
+            {!isBlocking ? (
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button onClick={() => { setBlockingSlotId(slot.id); setBlockType('iimpact'); setBlockReason('') }}
+                  style={{ flex: 1, background: '#EFF6FF', color: '#1D4ED8', border: 'none', borderRadius: '6px', padding: '5px', fontSize: '10px', fontWeight: '600', cursor: 'pointer' }}>
+                  IIMPACT
+                </button>
+                <button onClick={() => { setBlockingSlotId(slot.id); setBlockType('custom'); setBlockReason('') }}
+                  style={{ flex: 1, background: '#FEF3C7', color: '#92400E', border: 'none', borderRadius: '6px', padding: '5px', fontSize: '10px', fontWeight: '600', cursor: 'pointer' }}>
+                  Block
+                </button>
+              </div>
+            ) : (
+              <div>
+                {blockType === 'iimpact' ? (
+                  <div>
+                    <p style={{ fontSize: '11px', color: '#1D4ED8', margin: '0 0 6px', fontWeight: '600' }}>Reserve for IIMPACT Practice?</p>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button onClick={() => blockSlot(slot.id)}
+                        style={{ flex: 1, background: '#1D4ED8', color: '#fff', border: 'none', borderRadius: '5px', padding: '5px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>
+                        Confirm
+                      </button>
+                      <button onClick={() => setBlockingSlotId('')}
+                        style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '5px', padding: '5px', fontSize: '11px', cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <input type="text" placeholder="Reason (e.g. Company booking)" value={blockReason}
+                      onChange={e => setBlockReason(e.target.value)}
+                      style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '11px', outline: 'none', marginBottom: '4px', boxSizing: 'border-box' }} />
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button onClick={() => blockSlot(slot.id)}
+                        style={{ flex: 1, background: '#92400E', color: '#fff', border: 'none', borderRadius: '5px', padding: '5px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>
+                        Block
+                      </button>
+                      <button onClick={() => { setBlockingSlotId(''); setBlockReason('') }}
+                        style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '5px', padding: '5px', fontSize: '11px', cursor: 'pointer' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!autoNa && actualStatus === 'blocked' && (
+          <button onClick={() => unblockSlot(slot.id)}
+            style={{ width: '100%', background: '#ECFDF5', color: '#065F46', border: 'none', borderRadius: '6px', padding: '6px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>
+            Unblock
+          </button>
+        )}
+
+        {!autoNa && actualStatus === 'booked' && (
+          <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: '6px', padding: '5px', fontSize: '11px', color: '#1D4ED8', textAlign: 'center', fontWeight: '500' }}>
+            Paid & Confirmed
+          </div>
+        )}
+
+        {!autoNa && actualStatus === 'locked' && (
+          <div style={{ background: '#FEF3C7', borderRadius: '6px', padding: '5px', fontSize: '11px', color: '#92400E', textAlign: 'center', fontWeight: '500' }}>
+            In progress
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '28px 32px' }}>
@@ -199,6 +351,22 @@ export default function AdminSlots() {
         </div>
       )}
 
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        {[
+          { color: '#ECFDF5', border: '#6EE7B7', label: 'Available' },
+          { color: '#FFFBEB', border: '#FCD34D', label: 'Reserved (customer)' },
+          { color: '#EFF6FF', border: '#BFDBFE', label: 'Booked' },
+          { color: '#F1F5F9', border: '#CBD5E1', label: 'Blocked' },
+          { color: '#F8FAFC', border: '#E2E8F0', label: 'Auto N/A' },
+        ].map(item => (
+          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: item.color, border: `1px solid ${item.border}` }} />
+            <span style={{ fontSize: '11px', color: '#64748B' }}>{item.label}</span>
+          </div>
+        ))}
+      </div>
+
       {/* Slots */}
       {loading ? (
         <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '48px', textAlign: 'center' }}>
@@ -212,7 +380,7 @@ export default function AdminSlots() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {Object.entries(grouped).map(([timeKey, timeSlots]) => {
+          {Object.entries(grouped).map(([timeKey, group]) => {
             const [start, end] = timeKey.split('-')
             const startHour = parseInt(start.split(':')[0])
             const cutoffHour = parseInt((court?.half_court_cutoff || '14:00').split(':')[0])
@@ -220,102 +388,20 @@ export default function AdminSlots() {
 
             return (
               <div key={timeKey} style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                   <span style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A' }}>{start.slice(0,5)} - {end.slice(0,5)}</span>
                   <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', fontWeight: '500', background: isPeak ? '#FEF3C7' : '#ECFDF5', color: isPeak ? '#92400E' : '#065F46' }}>
                     {isPeak ? 'Peak' : 'Off-peak'}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#94A3B8', marginLeft: 'auto' }}>{timeSlots.length} slot unit{timeSlots.length > 1 ? 's' : ''}</span>
+                  <span style={{ fontSize: '11px', color: '#94A3B8', marginLeft: 'auto' }}>
+                    {Object.values(group).filter(Boolean).length} slot unit{Object.values(group).filter(Boolean).length > 1 ? 's' : ''}
+                  </span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {timeSlots.map(slot => {
-                    const st = STATUS_STYLES[slot.status] || STATUS_STYLES.blocked
-                    const isBlocking = blockingSlotId === slot.id
-
-                    return (
-                      <div key={slot.id} style={{ flex: 1, minWidth: '180px', background: st.bg, border: `0.5px solid ${st.color}30`, borderRadius: '10px', padding: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                          <p style={{ fontSize: '12px', fontWeight: '700', color: '#0F172A', margin: 0 }}>{COURT_TYPE_LABELS[slot.court_type]}</p>
-                          <span style={{ fontSize: '10px', background: st.bg, color: st.color, padding: '2px 7px', borderRadius: '20px', border: `0.5px solid ${st.color}50`, fontWeight: '600' }}>{st.label}</span>
-                        </div>
-                        <p style={{ fontSize: '13px', fontWeight: '700', color: '#1B6B3A', margin: '0 0 4px' }}>LKR {slot.price_lkr.toLocaleString()}</p>
-                        {slot.internal_reason && (
-                          <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 8px', fontStyle: 'italic' }}>📌 {slot.internal_reason}</p>
-                        )}
-
-                        {slot.status === 'available' && (
-                          <div>
-                            {!isBlocking ? (
-                              <div style={{ display: 'flex', gap: '4px' }}>
-                                <button onClick={() => { setBlockingSlotId(slot.id); setBlockType('iimpact'); setBlockReason('') }}
-                                  style={{ flex: 1, background: '#EFF6FF', color: '#1D4ED8', border: 'none', borderRadius: '6px', padding: '5px', fontSize: '10px', fontWeight: '600', cursor: 'pointer' }}>
-                                  IIMPACT
-                                </button>
-                                <button onClick={() => { setBlockingSlotId(slot.id); setBlockType('custom'); setBlockReason('') }}
-                                  style={{ flex: 1, background: '#FEF3C7', color: '#92400E', border: 'none', borderRadius: '6px', padding: '5px', fontSize: '10px', fontWeight: '600', cursor: 'pointer' }}>
-                                  Block
-                                </button>
-                              </div>
-                            ) : (
-                              <div>
-                                {blockType === 'iimpact' ? (
-                                  <div>
-                                    <p style={{ fontSize: '11px', color: '#1D4ED8', margin: '0 0 6px', fontWeight: '600' }}>Reserve for IIMPACT Practice?</p>
-                                    <div style={{ display: 'flex', gap: '4px' }}>
-                                      <button onClick={() => blockSlot(slot.id)}
-                                        style={{ flex: 1, background: '#1D4ED8', color: '#fff', border: 'none', borderRadius: '5px', padding: '5px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>
-                                        Confirm
-                                      </button>
-                                      <button onClick={() => setBlockingSlotId('')}
-                                        style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '5px', padding: '5px', fontSize: '11px', cursor: 'pointer' }}>
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <input type="text" placeholder="Reason (e.g. Company booking)" value={blockReason}
-                                      onChange={e => setBlockReason(e.target.value)}
-                                      style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '11px', outline: 'none', marginBottom: '4px', boxSizing: 'border-box' }} />
-                                    <div style={{ display: 'flex', gap: '4px' }}>
-                                      <button onClick={() => blockSlot(slot.id)}
-                                        style={{ flex: 1, background: '#92400E', color: '#fff', border: 'none', borderRadius: '5px', padding: '5px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>
-                                        Block
-                                      </button>
-                                      <button onClick={() => { setBlockingSlotId(''); setBlockReason('') }}
-                                        style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '5px', padding: '5px', fontSize: '11px', cursor: 'pointer' }}>
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {slot.status === 'blocked' && (
-                          <button onClick={() => unblockSlot(slot.id)}
-                            style={{ width: '100%', background: '#ECFDF5', color: '#065F46', border: 'none', borderRadius: '6px', padding: '6px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>
-                            Unblock
-                          </button>
-                        )}
-
-                        {slot.status === 'booked' && (
-                          <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: '6px', padding: '5px', fontSize: '11px', color: '#1D4ED8', textAlign: 'center', fontWeight: '500' }}>
-                            Paid & Confirmed
-                          </div>
-                        )}
-
-                        {slot.status === 'locked' && (
-                          <div style={{ background: '#FEF3C7', borderRadius: '6px', padding: '5px', fontSize: '11px', color: '#92400E', textAlign: 'center', fontWeight: '500' }}>
-                            In progress
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
+                  {group.full_court && renderSlotCard(group, 'full_court')}
+                  {group.half_a && renderSlotCard(group, 'half_a')}
+                  {group.half_b && renderSlotCard(group, 'half_b')}
                 </div>
               </div>
             )
