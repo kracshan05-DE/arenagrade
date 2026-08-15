@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
+import { sendOtpSMS } from '@/lib/sms'
 
 export default function VerifyPage() {
   const params = useParams()
@@ -118,9 +119,13 @@ export default function VerifyPage() {
       return
     }
 
-    // DEV MODE — replace with Notify.lk when API key is ready
-    console.log(`OTP for ${phone}: ${otpCode}`)
-    alert(`[DEV MODE] Your OTP is: ${otpCode}\n\nIn production this will be sent via SMS.`)
+   
+
+    // inside sendOtp function, after inserting OTP to database:
+    const smsResult = await sendOtpSMS(phone, otpCode)
+    if (!smsResult.success) {
+      console.log(`[DEV] OTP for ${phone}: ${otpCode}`) // fallback log
+    }
 
     setStep('otp')
     setResendCooldown(60)

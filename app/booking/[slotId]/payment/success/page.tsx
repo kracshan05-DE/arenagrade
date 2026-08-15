@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 
+
 interface Booking {
   id: string
   total_lkr: number
@@ -49,7 +50,31 @@ export default function SuccessPage() {
         .eq('status', 'confirmed')
         .single()
 
-      if (data) setBooking(data)
+      if (data) {
+        setBooking(data)
+
+        // Send booking confirmation SMS
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('phone')
+          .eq('id', user.id)
+          .single()
+
+        if (profile?.phone) {
+          const { sendBookingConfirmationSMS } = await import('@/lib/sms')
+          await sendBookingConfirmationSMS({
+            phone: profile.phone,
+            court_name: data.courts?.name || '',
+            slot_date: data.slots?.slot_date || '',
+            start_time: data.slots?.start_time?.slice(0,5) || '',
+            end_time: data.slots?.end_time?.slice(0,5) || '',
+            court_type: data.slots?.court_type || '',
+            amount: data.total_lkr,
+            reference: ref || data.payhere_payment_id || '',
+          })
+        }
+      }
+
       setLoading(false)
     }
     load()

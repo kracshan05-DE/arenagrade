@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { sendCancellationRequestAlert, sendCancellationApprovedSMS, sendCancellationRejectedSMS } from '@/lib/sms'
+
 
 interface Booking {
   id: string
@@ -152,6 +154,14 @@ export default function AdminBookings() {
       cancelled_by: 'admin',
     }).eq('id', booking.id)
 
+    await sendCancellationApprovedSMS({
+      phone: booking.profile?.phone || '',
+      court_name: booking.court?.name || '',
+      slot_date: booking.slot?.slot_date || '',
+      start_time: booking.slot?.start_time?.slice(0,5) || '',
+      amount: booking.total_lkr,
+    })
+
     if (booking.slot_id) {
       await supabase.from('slots').update({
         status: 'available',
@@ -165,9 +175,15 @@ export default function AdminBookings() {
     await loadBookings()
   }
 
-  const rejectCancel = async (bookingId: string) => {
-    setProcessing(bookingId)
-    await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', bookingId)
+  const rejectCancel = async (booking: EnrichedBooking) => {
+    setProcessing(booking.id)
+    await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', booking.id)
+    await sendCancellationRejectedSMS({
+      phone: booking.profile?.phone || '',
+      court_name: booking.court?.name || '',
+      slot_date: booking.slot?.slot_date || '',
+      start_time: booking.slot?.start_time?.slice(0,5) || '',
+    })
     setMessage('Cancellation request rejected. Booking remains confirmed.')
     setProcessing(null)
     await loadBookings()
@@ -433,7 +449,7 @@ export default function AdminBookings() {
 
                     {booking.status === 'cancellation_requested' && (
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => rejectCancel(booking.id)} disabled={processing === booking.id}
+                        <button onClick={() => rejectCancel(booking)} disabled={processing === booking.id}
                           style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                           Reject — Keep Booking
                         </button>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { BookingSkeleton } from '@/components/Skeleton'
+import { sendCancellationRequestAlert } from '@/lib/sms'
 
 interface Booking {
   id: string
@@ -16,6 +17,7 @@ interface Booking {
   payhere_payment_id: string | null
   slot_id: string
   court_id: string
+  user_id: string
 }
 
 interface SlotInfo {
@@ -31,9 +33,15 @@ interface CourtInfo {
   sport_types: { name: string }
 }
 
+interface ProfileInfo {
+  full_name: string | null
+  phone: string | null
+}
+
 interface EnrichedBooking extends Booking {
   slot?: SlotInfo
   court?: CourtInfo
+  profile?: ProfileInfo
 }
 
 const COURT_TYPE_LABELS: Record<string, string> = {
@@ -92,11 +100,17 @@ export default function MyBookingsPage() {
 
     const enriched: EnrichedBooking[] = await Promise.all(
       bookingsData.map(async (booking) => {
-        const [{ data: slotData }, { data: courtData }] = await Promise.all([
+        const [{ data: slotData }, { data: courtData }, { data: profileData }] = await Promise.all([
           supabase.from('slots').select('slot_date, start_time, end_time, court_type').eq('id', booking.slot_id).single(),
           supabase.from('courts').select('name, locations(name), sport_types(name)').eq('id', booking.court_id).single(),
+          supabase.from('profiles').select('full_name, phone').eq('id', booking.user_id).single(),
         ])
-        return { ...booking, slot: slotData || undefined, court: courtData as any || undefined }
+        return {
+          ...booking,
+          slot: slotData || undefined,
+          court: courtData as any || undefined,
+          profile: profileData || undefined,
+        }
       })
     )
 
@@ -125,6 +139,17 @@ export default function MyBookingsPage() {
       return
     }
 
+    // Alert Praneeth via SMS
+    await sendCancellationRequestAlert({
+      customer_phone: booking.profile?.phone || '',
+      customer_name: booking.profile?.full_name || null,
+      slot_date: booking.slot?.slot_date || '',
+      start_time: booking.slot?.start_time?.slice(0,5) || '',
+      end_time: booking.slot?.end_time?.slice(0,5) || '',
+      court_name: booking.court?.name || '',
+      reason: cancelReason.trim(),
+    })
+
     setCancellingId(null)
     setCancelReason('')
     setMessage('Cancellation request submitted. We will review and get back to you within 24 hours.')
@@ -145,7 +170,9 @@ export default function MyBookingsPage() {
     const st = STATUS_CONFIG[booking.status] || STATUS_CONFIG.cancelled
     const isExpanded = expandedId === booking.id
     const isCancelling = cancellingId === booking.id
-    const canCancel = booking.status === 'confirmed' && booking.slot ? isUpcoming(booking.slot.slot_date, booking.slot.start_time) : false
+    const canCancel = booking.status === 'confirmed' && booking.slot
+      ? isUpcoming(booking.slot.slot_date, booking.slot.start_time)
+      : false
 
     return (
       <div style={{ background: '#fff', borderRadius: '14px', border: `0.5px solid ${booking.status === 'cancellation_requested' ? '#FDE68A' : '#E2E8F0'}`, overflow: 'hidden', marginBottom: '10px' }}>
@@ -254,8 +281,8 @@ export default function MyBookingsPage() {
 
             {booking.status === 'cancelled' && booking.refund_amount_lkr && (
               <div style={{ background: '#ECFDF5', border: '0.5px solid #6EE7B7', borderRadius: '8px', padding: '10px 14px' }}>
-                <p style={{ fontSize: '12px', color: '#065F46', fontWeight: '600', margin: '0 0 2px' }}>✅ Refund processed</p>
-                <p style={{ fontSize: '12px', color: '#047857', margin: 0 }}>LKR {booking.refund_amount_lkr.toLocaleString()} will be returned to your original payment method within 5-7 business days.</p>
+                <p style={{ fontSize: '12px', color: '#065F46', fontWeight: '600', margin: '0 0 2px' }}>✅ Cancellation approved</p>
+                <p style={{ fontSize: '12px', color: '#047857', margin: 0 }}>Please WhatsApp us with your bank account details to receive your refund of LKR {booking.refund_amount_lkr.toLocaleString()}.</p>
               </div>
             )}
           </div>
