@@ -32,6 +32,9 @@ export default function RefundPolicyPage() {
               </div>
             ))}
           </div>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: '16px 0 0', textAlign: 'center' }}>
+            Refunds processed via direct bank transfer within 1–2 business days of approval
+          </p>
         </div>
 
         <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '32px' }}>
@@ -51,15 +54,15 @@ export default function RefundPolicyPage() {
             },
             {
               title: '4. How to Request a Cancellation',
-              content: 'To cancel a booking, sign in to your ArenaGrade account and go to My Bookings. Select the booking you wish to cancel and click Request Cancellation. You will be asked to provide a reason. Cancellation requests are reviewed by our team and processed within 24 hours. The cancellation button is only visible for bookings that are more than 24 hours away.'
+              content: 'To cancel a booking, sign in to your ArenaGrade account and go to My Bookings. Select the booking you wish to cancel and click Request Cancellation. You will be asked to provide a reason. Our team will review your request within 24 hours and contact you on WhatsApp to process your refund. The cancellation button is only available for bookings that are more than 24 hours away.'
             },
             {
               title: '5. Court Unavailability',
               content: 'In the unlikely event that ArenaGrade is unable to provide the booked court due to facility issues, emergency maintenance, or circumstances beyond our control, you will receive a full refund regardless of when the cancellation occurs. We will notify you as soon as possible via SMS.'
             },
             {
-              title: '6. Refund Processing Time',
-              content: 'Refunds are processed through PayHere and typically take 5–7 business days to appear in your account. Processing time may vary depending on your bank or payment provider. ArenaGrade is not responsible for delays caused by banks or payment processors.'
+            title: '6. Refund Processing',
+            content: 'Once your cancellation is approved, our team will contact you via WhatsApp to collect your bank account details. Refunds are processed via direct bank transfer within 1–2 business days of receiving your account information. Please ensure you are available on WhatsApp after submitting a cancellation request.'
             },
             {
               title: '7. Disputes',
