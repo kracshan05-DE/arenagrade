@@ -431,8 +431,14 @@ export default function LandingPage() {
           </div>
           <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>© 2026 ArenaGrade. All rights reserved. Sri Lanka.</p>
           <div style={{ display: 'flex', gap: '16px' }}>
-            {['Book a court', 'Shop', 'Contact'].map(l => (
-              <a key={l} href="#" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>{l}</a>
+            {[
+              { label: 'Book a court', href: '#book' },
+              { label: 'Terms', href: '/terms' },
+              { label: 'Privacy', href: '/privacy' },
+              { label: 'Refund Policy', href: '/refund-policy' },
+              { label: 'Contact', href: 'mailto:info@arenagrade.lk' },
+            ].map(l => (
+              <a key={l.label} href={l.href} style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>{l.label}</a>
             ))}
           </div>
         </div>
