@@ -1,10 +1,8 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
-
 
 interface Booking {
   id: string
@@ -53,13 +51,14 @@ export default function SuccessPage() {
       if (data) {
         setBooking(data)
 
-        // Send booking confirmation SMS
+        // Load profile for phone
         const { data: profile } = await supabase
           .from('profiles')
           .select('phone')
           .eq('id', user.id)
           .single()
 
+        // Send booking confirmation SMS
         if (profile?.phone) {
           const { sendBookingConfirmationSMS } = await import('@/lib/sms')
           await sendBookingConfirmationSMS({
@@ -69,6 +68,25 @@ export default function SuccessPage() {
             start_time: data.slots?.start_time?.slice(0,5) || '',
             end_time: data.slots?.end_time?.slice(0,5) || '',
             court_type: data.slots?.court_type || '',
+            amount: data.total_lkr,
+            reference: ref || data.payhere_payment_id || '',
+          })
+        }
+
+        // Send booking confirmation email
+        const { data: userAuth } = await supabase.auth.getUser()
+        if (userAuth?.user?.email) {
+          const { sendBookingConfirmationEmail } = await import('@/lib/email')
+          await sendBookingConfirmationEmail({
+            customer_email: userAuth.user.email,
+            customer_name: userAuth.user.user_metadata?.full_name || userAuth.user.email.split('@')[0],
+            court_name: data.courts?.name || '',
+            location: data.courts?.locations?.name || '',
+            slot_date: data.slots?.slot_date || '',
+            start_time: data.slots?.start_time?.slice(0,5) || '',
+            end_time: data.slots?.end_time?.slice(0,5) || '',
+            court_type: data.slots?.court_type === 'full_court' ? 'Full Court'
+              : data.slots?.court_type === 'half_a' ? 'Half Court A' : 'Half Court B',
             amount: data.total_lkr,
             reference: ref || data.payhere_payment_id || '',
           })
@@ -91,7 +109,7 @@ export default function SuccessPage() {
 
       <div style={{ maxWidth: '480px', margin: '48px auto', padding: '0 16px 48px' }}>
 
-        {/* Success animation */}
+        {/* Success */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div style={{ width: '72px', height: '72px', background: '#ECFDF5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', margin: '0 auto 16px', border: '3px solid #6EE7B7' }}>
             ✅
