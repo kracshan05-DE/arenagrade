@@ -1,61 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// Notify.lk API docs: https://notify.lk/api
+// Text.lk API docs: https://text.lk/docs/api-endpoints-introduction
 // SMS types we send:
 // 1. OTP verification — to customer during booking
 // 2. Cancellation alert — to Praneeth when customer requests cancellation
 // 3. Booking confirmation — to customer after successful payment
 // 4. Cancellation confirmation — to customer when admin approves cancellation
 
-const NOTIFY_LK_BASE = 'https://app.notify.lk/api/v1/send'
-
-interface SMSPayload {
-  user_id: string
-  api_key: string
-  sender_id: string
-  to: string
-  message: string
-}
+const TEXT_LK_BASE = 'https://app.text.lk/api/v3/sms/send'
 
 async function sendSMS(to: string, message: string): Promise<{ success: boolean; error?: string }> {
-  const userId = process.env.NOTIFY_LK_USER_ID
-  const apiKey = process.env.NOTIFY_LK_API_KEY
-  const senderId = process.env.NOTIFY_LK_SENDER_ID || 'ArenaGrade'
+  const apiKey = process.env.TEXT_LK_API_KEY
+  const senderId = process.env.TEXT_LK_SENDER_ID || 'TextLKDemo'
 
   // DEV MODE — if no API key, log and return success
-  if (!userId || !apiKey) {
+  if (!apiKey) {
     console.log(`[DEV SMS] To: ${to} | Message: ${message}`)
     return { success: true }
   }
 
-  // Format phone — Notify.lk needs 94XXXXXXXXX format
+  // Format phone — Text.lk needs 94XXXXXXXXX format
   let phone = to.replace(/\D/g, '')
   if (phone.startsWith('0')) phone = '94' + phone.slice(1)
   if (!phone.startsWith('94')) phone = '94' + phone
 
-  const payload: SMSPayload = {
-    user_id: userId,
-    api_key: apiKey,
-    sender_id: senderId,
-    to: phone,
-    message,
-  }
-
   try {
-    const response = await fetch(NOTIFY_LK_BASE, {
+    const response = await fetch(TEXT_LK_BASE, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        recipient: phone,
+        sender_id: senderId,
+        type: 'plain',
+        message,
+      }),
     })
 
     const data = await response.json()
 
-    // Notify.lk returns status: "success" on success
-    if (data.status === 'success') {
+    if (response.ok) {
       return { success: true }
     } else {
-      console.error('Notify.lk error:', data)
+      console.error('Text.lk error:', data)
       return { success: false, error: data.message || 'SMS failed' }
     }
   } catch (err) {
