@@ -22,8 +22,9 @@ async function sendSMS(to: string, message: string): Promise<{ success: boolean;
 
   // Format phone — Text.lk needs 94XXXXXXXXX format
   let phone = to.replace(/\D/g, '')
-  if (phone.startsWith('0')) phone = '94' + phone.slice(1)
-  if (!phone.startsWith('94')) phone = '94' + phone
+  if (phone.startsWith('0')) phone = phone.slice(1)
+  if (phone.startsWith('94')) phone = phone.slice(2)
+  phone = '94' + phone 
 
   try {
     const response = await fetch(TEXT_LK_BASE, {
