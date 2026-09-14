@@ -44,24 +44,23 @@ export default function BookingPage() {
   const [timeLeft, setTimeLeft] = useState(600)
   const [error, setError] = useState('')
   const [user, setUser] = useState<any>(null)
-  const lockAttempted = useRef(false) // Prevent double-click
+  const [showExitWarning, setShowExitWarning] = useState(false)
+  const lockAttempted = useRef(false)
+  const slotRef = useRef<Slot | null>(null)
+  const userRef = useRef<any>(null)
 
   useEffect(() => {
     const init = async () => {
-      // Check auth
       const currentUser = await getCurrentUser()
       if (!currentUser) {
         router.push(`/auth?redirect=/booking/${slotId}`)
         return
       }
       setUser(currentUser)
+      userRef.current = currentUser
 
-      // Load and validate slot
       const { data: slotData, error: slotError } = await supabase
-        .from('slots')
-        .select('*')
-        .eq('id', slotId)
-        .single()
+        .from('slots').select('*').eq('id', slotId).single()
 
       if (slotError || !slotData) {
         setError('This slot could not be found. It may have been removed.')
@@ -69,31 +68,26 @@ export default function BookingPage() {
         return
       }
 
-      // Slot is already booked
       if (slotData.status === 'booked' || slotData.status === 'blocked') {
         setError('This slot is no longer available. Please go back and choose another slot.')
         setLoading(false)
         return
       }
 
-      // Slot is locked by current user — restore session
       if (slotData.status === 'locked' && slotData.locked_by === currentUser.id) {
         const expiresAt = new Date(slotData.lock_expires_at || '').getTime()
         const remaining = Math.floor((expiresAt - Date.now()) / 1000)
         if (remaining > 0) {
           setSlot(slotData)
+          slotRef.current = slotData
           const { data: courtData } = await supabase
-            .from('courts')
-            .select('*, locations(name, address), sport_types(name)')
-            .eq('id', slotData.court_id)
-            .single()
+            .from('courts').select('*, locations(name, address), sport_types(name)').eq('id', slotData.court_id).single()
           if (courtData) setCourt(courtData)
           setLocked(true)
           setTimeLeft(remaining)
           setLoading(false)
           return
         } else {
-          // Lock expired — release and allow fresh booking
           await supabase.from('slots').update({
             status: 'available', locked_by: null, lock_expires_at: null
           }).eq('id', slotData.id)
@@ -101,7 +95,6 @@ export default function BookingPage() {
         }
       }
 
-      // Slot locked by someone else
       if (slotData.status === 'locked' && slotData.locked_by !== currentUser.id) {
         setError('This slot is currently being reserved by another customer. Please go back and try another slot.')
         setLoading(false)
@@ -109,25 +102,29 @@ export default function BookingPage() {
       }
 
       setSlot(slotData)
+      slotRef.current = slotData
 
-      const { data: courtData, error: courtError } = await supabase
-        .from('courts')
-        .select('*, locations(name, address), sport_types(name)')
-        .eq('id', slotData.court_id)
-        .single()
-
-      if (courtError || !courtData) {
-        setError('Court details could not be loaded. Please try again.')
-        setLoading(false)
-        return
-      }
-
-      setCourt(courtData)
+      const { data: courtData } = await supabase
+        .from('courts').select('*, locations(name, address), sport_types(name)').eq('id', slotData.court_id).single()
+      if (courtData) setCourt(courtData)
       setLoading(false)
     }
-
     init()
   }, [slotId, router])
+
+  // Warn user before browser back/close/refresh when slot is locked
+  useEffect(() => {
+    if (!locked) return
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = 'You have a slot reserved. Leaving will cancel your reservation.'
+      return e.returnValue
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [locked])
 
   // Countdown timer
   useEffect(() => {
@@ -143,13 +140,32 @@ export default function BookingPage() {
   }, [locked, timeLeft])
 
   const handleExpiry = async () => {
-    if (slot) {
+    if (slotRef.current) {
       await supabase.from('slots').update({
         status: 'available', locked_by: null, lock_expires_at: null
-      }).eq('id', slot.id)
+      }).eq('id', slotRef.current.id)
     }
     setLocked(false)
     setError('Your reservation expired. Please go back and select the slot again.')
+  }
+
+  const releaseAndExit = async () => {
+    if (slotRef.current) {
+      await supabase.from('slots').update({
+        status: 'available', locked_by: null, lock_expires_at: null
+      }).eq('id', slotRef.current.id)
+    }
+    setLocked(false)
+    setShowExitWarning(false)
+    router.back()
+  }
+
+  const handleBackClick = () => {
+    if (locked) {
+      setShowExitWarning(true)
+    } else {
+      router.back()
+    }
   }
 
   const formatTime = (seconds: number) => {
@@ -163,28 +179,14 @@ export default function BookingPage() {
   const timerBorder = timeLeft < 120 ? '#FECACA' : timeLeft < 300 ? '#FDE68A' : '#6EE7B7'
 
   const lockSlot = async () => {
-    // Prevent double-click
     if (lockAttempted.current || locking) return
     lockAttempted.current = true
-
-    const { checkSlotLockRateLimit } = await import('@/lib/rateLimitHelper')
-    const rateCheck = await checkSlotLockRateLimit(user.id)
-    if (!rateCheck.allowed) {
-      setError(rateCheck.message || 'Too many reservations. Please complete existing bookings first.')
-      lockAttempted.current = false
-      return
-    }
-
     if (!slot || !user) return
     setLocking(true)
     setError('')
 
-    // Re-check slot is still available before locking
     const { data: freshSlot } = await supabase
-      .from('slots')
-      .select('status, version')
-      .eq('id', slot.id)
-      .single()
+      .from('slots').select('status, version').eq('id', slot.id).single()
 
     if (!freshSlot || freshSlot.status !== 'available') {
       setError('This slot was just taken by another customer. Please go back and choose another slot.')
@@ -198,8 +200,7 @@ export default function BookingPage() {
     const { data, error: lockError } = await supabase
       .from('slots')
       .update({
-        status: 'locked',
-        locked_by: user.id,
+        status: 'locked', locked_by: user.id,
         lock_expires_at: lockExpiry,
         version: (freshSlot.version || 0) + 1,
       })
@@ -214,17 +215,12 @@ export default function BookingPage() {
       return
     }
 
+    const updatedSlot = { ...slot, status: 'locked', lock_expires_at: lockExpiry }
+    setSlot(updatedSlot)
+    slotRef.current = updatedSlot
     setLocked(true)
     setTimeLeft(600)
     setLocking(false)
-  }
-
-  const releaseSlot = async () => {
-    if (!slot) return
-    await supabase.from('slots').update({
-      status: 'available', locked_by: null, lock_expires_at: null
-    }).eq('id', slot.id)
-    router.back()
   }
 
   const formatDate = (dateStr: string) => {
@@ -252,14 +248,12 @@ export default function BookingPage() {
       <div style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
         <Navbar />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 20px' }}>
-          <div style={{ background: '#fff', borderRadius: '16px', border: '0.5px solid #E2E8F0', padding: '40px', maxWidth: '420px', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
+          <div style={{ background: '#fff', borderRadius: '16px', border: '0.5px solid #E2E8F0', padding: '40px', maxWidth: '420px', textAlign: 'center' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
             <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', margin: '0 0 8px' }}>Slot unavailable</h2>
             <p style={{ fontSize: '14px', color: '#64748B', lineHeight: '1.7', margin: '0 0 24px' }}>{error}</p>
-            <button
-              onClick={() => router.back()}
-              style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px 28px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
-            >
+            <button onClick={() => router.back()}
+              style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px 28px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
               Go back
             </button>
           </div>
@@ -271,6 +265,34 @@ export default function BookingPage() {
   return (
     <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
       <Navbar />
+
+      {/* Exit warning modal */}
+      {showExitWarning && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
+          <div style={{ position: 'relative', background: '#fff', borderRadius: '16px', padding: '28px', maxWidth: '380px', width: '100%', textAlign: 'center' }}>
+            <div style={{ fontSize: '40px', marginBottom: '14px' }}>⚠️</div>
+            <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', margin: '0 0 8px' }}>Cancel your reservation?</h2>
+            <p style={{ fontSize: '14px', color: '#64748B', lineHeight: '1.7', margin: '0 0 24px' }}>
+              If you go back, your reserved slot will be released and another customer may book it. Are you sure you want to cancel?
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setShowExitWarning(false)}
+                style={{ flex: 1, background: '#F1F5F9', color: '#0F172A', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+              >
+                Keep reservation
+              </button>
+              <button
+                onClick={releaseAndExit}
+                style={{ flex: 1, background: '#DC2626', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+              >
+                Yes, cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating timer */}
       {locked && (
@@ -316,7 +338,6 @@ export default function BookingPage() {
         {slot && court && (
           <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '14px' }}>
             <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>BOOKING SUMMARY</p>
-
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
               <div style={{ width: '48px', height: '48px', background: '#ECFDF5', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>🏀</div>
               <div>
@@ -324,7 +345,6 @@ export default function BookingPage() {
                 <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>📍 {court.locations.name}</p>
               </div>
             </div>
-
             <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
@@ -345,7 +365,6 @@ export default function BookingPage() {
                 </div>
               </div>
             </div>
-
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '14px', borderTop: '0.5px solid #F1F5F9' }}>
               <div>
                 <p style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 2px' }}>Total amount</p>
@@ -382,21 +401,16 @@ export default function BookingPage() {
                 <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>The slot will be reserved exclusively for you once you click below</p>
               </div>
             </div>
-
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => router.back()}
+              <button onClick={handleBackClick}
                 style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
                 Cancel
               </button>
-              <button
-                onClick={lockSlot}
-                disabled={locking}
-                style={{ flex: 2, background: locking ? '#94A3B8' : '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '14px', fontWeight: '600', cursor: locking ? 'not-allowed' : 'pointer', transition: 'background 0.15s' }}
-              >
+              <button onClick={lockSlot} disabled={locking}
+                style={{ flex: 2, background: locking ? '#94A3B8' : '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '14px', fontWeight: '600', cursor: locking ? 'not-allowed' : 'pointer' }}>
                 {locking ? 'Reserving...' : 'Reserve and continue'}
               </button>
             </div>
-
             {error && (
               <div style={{ marginTop: '12px', background: '#FEE2E2', border: '0.5px solid #FECACA', borderRadius: '8px', padding: '10px 14px' }}>
                 <p style={{ fontSize: '13px', color: '#DC2626', margin: 0 }}>{error}</p>
@@ -412,7 +426,6 @@ export default function BookingPage() {
                 <p style={{ fontSize: '12px', color: '#047857', margin: 0 }}>Complete payment before the timer runs out to confirm your booking</p>
               </div>
             </div>
-
             <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px' }}>
               <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>NEXT STEPS</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
@@ -431,9 +444,8 @@ export default function BookingPage() {
                   </div>
                 </div>
               </div>
-
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={releaseSlot}
+                <button onClick={handleBackClick}
                   style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
                   Cancel
                 </button>
@@ -446,7 +458,6 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* Trust signals */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '20px', flexWrap: 'wrap' }}>
           {['🔒 Secure payment', '✅ Instant confirmation', '📱 SMS receipt'].map(item => (
             <span key={item} style={{ fontSize: '11px', color: '#94A3B8' }}>{item}</span>
