@@ -112,20 +112,6 @@ export default function BookingPage() {
     init()
   }, [slotId, router])
 
-  // Warn user before browser back/close/refresh when slot is locked
-  useEffect(() => {
-    if (!locked) return
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
-      e.returnValue = 'You have a slot reserved. Leaving will cancel your reservation.'
-      return e.returnValue
-    }
-
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [locked])
-
   // Countdown timer
   useEffect(() => {
     if (!locked) return
@@ -138,7 +124,22 @@ export default function BookingPage() {
     }, 1000)
     return () => clearInterval(timer)
   }, [locked, timeLeft])
+    // Intercept browser back button when slot is locked
+  useEffect(() => {
+    if (!locked) return
 
+    // Push dummy history entry so back button can be intercepted
+    window.history.pushState(null, '', window.location.href)
+
+    const handlePopState = () => {
+      // Keep user on page and show warning modal
+      window.history.pushState(null, '', window.location.href)
+      setShowExitWarning(true)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [locked])
   const handleExpiry = async () => {
     if (slotRef.current) {
       await supabase.from('slots').update({
