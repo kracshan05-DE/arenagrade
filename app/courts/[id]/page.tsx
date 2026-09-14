@@ -259,12 +259,17 @@ export default function CourtPage() {
           <div style={{ borderTop: '0.5px solid #F1F5F9', paddingTop: '14px' }}>
             <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 8px' }}>PRICING</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {court.court_pricing.map((p, i) => (
-                <div key={i} style={{ background: '#F8FAFC', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
-                  <span style={{ color: '#64748B' }}>{p.tier_name} ({p.time_from.slice(0,5)}-{p.time_to.slice(0,5)})</span>
-                  <span style={{ color: '#1B6B3A', fontWeight: '700', marginLeft: '6px' }}>LKR {p.price_lkr.toLocaleString()}</span>
-                </div>
-              ))}
+              {court.court_pricing
+                .filter((p, index, self) =>
+                  index === self.findIndex(t => t.tier_name === p.tier_name && t.price_lkr === p.price_lkr)
+                )
+                .map((p, i) => (
+                  <div key={i} style={{ background: '#F8FAFC', borderRadius: '8px', padding: '8px 12px', fontSize: '12px' }}>
+                    <span style={{ color: '#64748B' }}>{p.tier_name} ({p.time_from?.slice(0,5)}-{p.time_to?.slice(0,5)})</span>
+                    <span style={{ color: '#1B6B3A', fontWeight: '700', marginLeft: '6px' }}>LKR {p.price_lkr.toLocaleString()}</span>
+                  </div>
+                ))
+              }
             </div>
           </div>
         </div>
