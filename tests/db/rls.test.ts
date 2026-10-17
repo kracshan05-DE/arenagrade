@@ -114,7 +114,7 @@ describe('function privileges', () => {
       select p.proname from pg_proc p
       where p.pronamespace = 'public'::regnamespace
         and has_function_privilege('anon', p.oid, 'execute')
-        and p.proname not in ('slot_period', 'slot_parts', 'colombo_now')`)
+        and p.proname not in ('slot_period', 'slot_parts', 'colombo_now', 'slot_hours')`)
     expect(r.rows.map((x) => x.proname)).toEqual([])
   })
 
@@ -125,8 +125,9 @@ describe('function privileges', () => {
         and has_function_privilege('authenticated', p.oid, 'execute')
       order by 1`)
     expect(r.rows.map((x) => x.proname)).toEqual([
-      'admin_block_slot', 'admin_decide_cancellation', 'admin_generate_recurring_slots', 'admin_unblock_slot',
-      'admin_update_refund', 'hold_slot', 'is_super_admin', 'release_hold', 'request_booking_cancellation',
+      'admin_block_slot', 'admin_decide_cancellation', 'admin_generate_court_slots', 'admin_generate_recurring_slots',
+      'admin_unblock_slot', 'admin_update_refund', 'hold_slot', 'hold_slots', 'is_super_admin', 'release_hold',
+      'request_booking_cancellation',
     ])
   })
 

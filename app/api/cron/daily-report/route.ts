@@ -54,9 +54,9 @@ export async function GET(req: Request) {
       }
       if (!recipients.length) throw new Error('no_recipients_configured')
       const { from, to } = reportWindow(day)
-      const report = await db().rpcAsService<Parameters<typeof dailyReportEmail>[0]>('report_daily', {
-        p_from: from.toISOString(), p_to: to.toISOString(),
-      })
+      const window = { p_from: from.toISOString(), p_to: to.toISOString() }
+      const report = await db().rpcAsService<Parameters<typeof dailyReportEmail>[0]>('report_daily', window)
+      report.bookings_by_court = await db().rpcAsService<Record<string, unknown>>('report_bookings_by_court', window)
       const m = dailyReportEmail(report, day, env.siteUrl())
       const sent = await sendEmail({
         template: 'daily_report', to: recipients, subject: m.subject, html: m.html, text: m.text,

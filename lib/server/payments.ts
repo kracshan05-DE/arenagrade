@@ -9,7 +9,7 @@ import { sendEmail } from './notify/email'
 import { sms, bookingConfirmedEmail } from './notify/templates'
 
 export interface ApplyResult {
-  result: string; order_id: string; booking_id?: string | null; user_id?: string; slot_id?: string; amount?: string
+  result: string; order_id: string; booking_id?: string | null; user_id?: string; slot_id?: string; slot_ids?: string[]; amount?: string
 }
 
 export function eventKey(parts: (string | number | null | undefined)[]) {
@@ -35,13 +35,17 @@ export async function applyNotification(p: {
 export async function afterNotification(r: ApplyResult, cid: string) {
   try {
     if (r.result === 'confirmed' && r.user_id && r.slot_id) {
-      const [profile, email, slot] = await Promise.all([
-        db().getProfile(r.user_id), db().getUserEmail(r.user_id), db().getSlotSummary(r.slot_id),
+      const ids = r.slot_ids?.length ? r.slot_ids : [r.slot_id]
+      const [profile, email, ...slots] = await Promise.all([
+        db().getProfile(r.user_id), db().getUserEmail(r.user_id), ...ids.map((id) => db().getSlotSummary(id)),
       ])
-      if (!slot) return
+      const hours = slots.filter((x): x is NonNullable<typeof x> => Boolean(x))
+        .sort((a, b) => (a.slot_date + a.start_time).localeCompare(b.slot_date + b.start_time))
+      if (!hours.length) return
+      const slot = hours[0]
       const facts = {
         court_name: slot.court_name, court_type: slot.court_type, slot_date: slot.slot_date,
-        start_time: slot.start_time.slice(0, 5), end_time: slot.end_time.slice(0, 5),
+        start_time: slot.start_time.slice(0, 5), end_time: hours[hours.length - 1].end_time.slice(0, 5),
         amount: r.amount ?? '0', reference: r.order_id, location: slot.location_name, customer_name: profile?.full_name,
       }
       await sendSms({

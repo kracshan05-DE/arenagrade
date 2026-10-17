@@ -77,6 +77,12 @@ export default function MyBookingsPage() {
     init()
   }, [router])
 
+  // End time of the last hour of a booking (two-hour Solo Court bookings).
+  const lastEnd = (rows: unknown) => {
+    const ends = ((rows as { slots: { end_time: string } | null }[] | null) ?? []).map((r) => r.slots?.end_time).filter(Boolean) as string[]
+    return ends.length ? ends.sort().at(-1) : undefined
+  }
+
   const loadBookings = async (userId: string) => {
     setLoading(true)
     setFetchError('')
@@ -101,14 +107,15 @@ export default function MyBookingsPage() {
 
     const enriched: EnrichedBooking[] = await Promise.all(
       bookingsData.map(async (booking) => {
-        const [{ data: slotData }, { data: courtData }, { data: profileData }] = await Promise.all([
+        const [{ data: slotData }, { data: hourRows }, { data: courtData }, { data: profileData }] = await Promise.all([
           supabase.from('slots').select('slot_date, start_time, end_time, court_type').eq('id', booking.slot_id).single(),
+          supabase.from('booking_slots').select('slots(start_time, end_time)').eq('booking_id', booking.id),
           supabase.from('courts').select('name, locations(name), sport_types(name)').eq('id', booking.court_id).single(),
           supabase.from('profiles').select('full_name, phone').eq('id', booking.user_id).single(),
         ])
         return {
           ...booking,
-          slot: slotData || undefined,
+          slot: slotData ? { ...slotData, end_time: lastEnd(hourRows) ?? slotData.end_time, hours: hourRows?.length || 1 } : undefined,
           court: courtData as any || undefined,
           profile: profileData || undefined,
         }

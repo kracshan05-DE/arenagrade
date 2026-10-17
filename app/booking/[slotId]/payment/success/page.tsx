@@ -14,6 +14,7 @@ interface Booking {
   payhere_payment_id: string
   idempotency_key: string | null
   slots: { slot_date: string; start_time: string; end_time: string; court_type: string } | null
+  booking_slots: { slots: { start_time: string; end_time: string } | null }[] | null
   courts: { name: string; locations: { name: string; address: string } | null } | null
 }
 
@@ -40,7 +41,7 @@ export default function SuccessPage() {
     const loadBooking = async (userId: string) => {
       let q = supabase
         .from('bookings')
-        .select('id, total_lkr, payhere_payment_id, idempotency_key, slots(slot_date, start_time, end_time, court_type), courts(name, locations(name, address))')
+        .select('id, total_lkr, payhere_payment_id, idempotency_key, slots(slot_date, start_time, end_time, court_type), booking_slots(slots(start_time, end_time)), courts(name, locations(name, address))')
         .eq('slot_id', slotId).eq('user_id', userId).in('status', ['confirmed', 'cancellation_requested'])
       if (order) q = q.eq('idempotency_key', order)
       const { data } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle()
@@ -76,6 +77,15 @@ export default function SuccessPage() {
     check()
     return () => { stopped = true; if (timer) clearTimeout(timer) }
   }, [slotId, order])
+
+  // All hours of the booking (a two-hour Solo Court booking has two).
+  const range = (b: Booking) => {
+    const hrs = (b.booking_slots ?? []).map((x) => x.slots).filter((x): x is { start_time: string; end_time: string } => !!x)
+      .sort((a, c) => a.start_time.localeCompare(c.start_time))
+    const start = (hrs[0]?.start_time ?? b.slots?.start_time ?? '').slice(0, 5)
+    const end = (hrs[hrs.length - 1]?.end_time ?? b.slots?.end_time ?? '').slice(0, 5)
+    return `${start} - ${end}${hrs.length > 1 ? ` (${hrs.length} hours)` : ''}`
+  }
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return ''
@@ -124,7 +134,7 @@ export default function SuccessPage() {
                 </div>
                 <div>
                   <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Time</p>
-                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{booking.slots?.start_time?.slice(0, 5)} - {booking.slots?.end_time?.slice(0, 5)}</p>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{range(booking)}</p>
                 </div>
                 <div>
                   <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Court type</p>

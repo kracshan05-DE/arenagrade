@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { rpcErrorCode } from '@/lib/apiClient'
@@ -37,8 +37,17 @@ export default function BookingPage() {
   const params = useParams()
   const router = useRouter()
   const slotId = params.slotId as string
+  const searchParams = useSearchParams()
+  // A multi-hour reservation (The Solo Court) arrives as ?slots=id1,id2.
+  const requestedIds = (() => {
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const list = (searchParams.get('slots') || '').split(',').filter((x) => UUID.test(x))
+    return list.length > 1 && list.length <= 4 && list.includes(slotId) ? list : [slotId]
+  })()
+  const requestedKey = requestedIds.join(',')
 
   const [slot, setSlot] = useState<Slot | null>(null)
+  const [group, setGroup] = useState<Slot[]>([])
   const [court, setCourt] = useState<Court | null>(null)
   const [loading, setLoading] = useState(true)
   const [locking, setLocking] = useState(false)
@@ -55,54 +64,59 @@ export default function BookingPage() {
     const init = async () => {
       const currentUser = await getCurrentUser()
       if (!currentUser) {
-        router.push(`/auth?redirect=/booking/${slotId}`)
+        router.push(`/auth?redirect=${encodeURIComponent(`/booking/${slotId}${requestedIds.length > 1 ? `?slots=${requestedKey}` : ''}`)}`)
         return
       }
       setUser(currentUser)
       userRef.current = currentUser
 
-      const { data: slotData, error: slotError } = await supabase
-        .from('slots').select('*').eq('id', slotId).single()
+      const ids = requestedKey.split(',')
+      const { data: rows, error: slotError } = await supabase.from('slots').select('*').in('id', ids)
+      const slotData = rows?.find((r) => r.id === slotId)
 
-      if (slotError || !slotData) {
+      if (slotError || !rows || rows.length !== ids.length || !slotData) {
         setError('This slot could not be found. It may have been removed.')
         setLoading(false)
         return
       }
 
-      if (slotData.status === 'booked' || slotData.status === 'blocked') {
-        setError('This slot is no longer available. Please go back and choose another slot.')
-        setLoading(false)
-        return
-      }
+      const isActiveLock = (r: Slot & { locked_by?: string | null }) =>
+        r.status === 'locked' && !!r.lock_expires_at && new Date(r.lock_expires_at).getTime() > Date.now()
 
-      const lockActive = slotData.status === 'locked' && slotData.lock_expires_at && new Date(slotData.lock_expires_at).getTime() > Date.now()
-
-      if (lockActive && slotData.locked_by === currentUser.id) {
-        // Our own hold (e.g. page refresh): resume the countdown from the server's expiry.
-        const remaining = Math.floor((new Date(slotData.lock_expires_at).getTime() - Date.now()) / 1000)
-        setSlot(slotData)
-        slotRef.current = slotData
+      // Our own hold (e.g. page refresh): resume it — including every hour of a
+      // multi-hour hold, which share one expiry — from the server's timer.
+      if (isActiveLock(slotData) && slotData.locked_by === currentUser.id) {
+        const { data: held } = await supabase.from('slots').select('*')
+          .eq('court_id', slotData.court_id).eq('locked_by', currentUser.id)
+          .eq('status', 'locked').eq('lock_expires_at', slotData.lock_expires_at)
+          .order('slot_date').order('start_time')
+        const mine = (held && held.length ? held : [slotData]) as Slot[]
+        setSlot(mine[0]); slotRef.current = mine[0]; setGroup(mine)
         const { data: courtData } = await supabase
           .from('courts').select('*, locations(name, address), sport_types(name)').eq('id', slotData.court_id).single()
         if (courtData) setCourt(courtData)
         setLocked(true)
-        setTimeLeft(remaining)
+        setTimeLeft(Math.floor((new Date(slotData.lock_expires_at).getTime() - Date.now()) / 1000))
         setLoading(false)
         return
       }
 
-      if (lockActive) {
-        setError('This slot is currently being reserved by another customer. Please go back and try another slot.')
+      if (rows.some((r) => r.status === 'booked' || r.status === 'blocked')) {
+        setError(ids.length > 1
+          ? 'One of the hours you picked is no longer available. Please go back and choose another time.'
+          : 'This slot is no longer available. Please go back and choose another slot.')
+        setLoading(false)
+        return
+      }
+      if (rows.some((r) => isActiveLock(r))) {
+        setError('This time is currently being reserved by another customer. Please go back and try another slot.')
         setLoading(false)
         return
       }
 
-      // An expired hold counts as available; the server releases it when we reserve.
-      if (slotData.status === 'locked') slotData.status = 'available'
-
-      setSlot(slotData)
-      slotRef.current = slotData
+      const sorted = [...rows].sort((a, b) => (a.slot_date + a.start_time).localeCompare(b.slot_date + b.start_time))
+        .map((r) => ({ ...r, status: r.status === 'locked' ? 'available' : r.status })) as Slot[]
+      setSlot(sorted[0]); slotRef.current = sorted[0]; setGroup(sorted)
 
       const { data: courtData } = await supabase
         .from('courts').select('*, locations(name, address), sport_types(name)').eq('id', slotData.court_id).single()
@@ -110,7 +124,7 @@ export default function BookingPage() {
       setLoading(false)
     }
     init()
-  }, [slotId, router])
+  }, [slotId, requestedKey, router])
 
   // Countdown timer
   useEffect(() => {
@@ -184,7 +198,7 @@ export default function BookingPage() {
 
     // The database decides: availability, half/full conflicts, practice blocks,
     // cut-off time, price and the 10-minute expiry (server clock).
-    const { data, error: holdError } = await supabase.rpc('hold_slot', { p_slot_id: slot.id })
+    const { data, error: holdError } = await supabase.rpc('hold_slots', { p_slot_ids: group.map((g) => g.id) })
 
     if (holdError || !data) {
       setError(userMessage(rpcErrorCode(holdError), 'Could not reserve this slot. Please go back and try again.'))
@@ -197,6 +211,7 @@ export default function BookingPage() {
     const updatedSlot = { ...slot, status: 'locked', lock_expires_at: lockExpiry }
     setSlot(updatedSlot)
     slotRef.current = updatedSlot
+    setGroup((g) => g.map((x) => ({ ...x, status: 'locked', lock_expires_at: lockExpiry })))
     setLocked(true)
     setTimeLeft(Number(data.seconds_left ?? 600))
     setLocking(false)
@@ -332,7 +347,7 @@ export default function BookingPage() {
                 </div>
                 <div>
                   <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Time</p>
-                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{slot.start_time.slice(0,5)} - {slot.end_time.slice(0,5)}</p>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{slot.start_time.slice(0,5)} - {(group[group.length - 1] ?? slot).end_time.slice(0,5)}{group.length > 1 ? ` (${group.length} hours)` : ''}</p>
                 </div>
                 <div>
                   <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Court type</p>
@@ -347,7 +362,7 @@ export default function BookingPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '14px', borderTop: '0.5px solid #F1F5F9' }}>
               <div>
                 <p style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 2px' }}>Total amount</p>
-                <p style={{ fontSize: '24px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>LKR {slot.price_lkr.toLocaleString()}</p>
+                <p style={{ fontSize: '24px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>LKR {(group.length ? group.reduce((sum, g) => sum + Number(g.price_lkr), 0) : slot.price_lkr).toLocaleString()}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 2px' }}>Payment via</p>

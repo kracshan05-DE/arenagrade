@@ -111,6 +111,9 @@ export function dailyReportEmail(r: Report, periodLabel: string, siteUrl: string
   const section = (title: string, rows: string) => `<div style="background:#fff;border-radius:12px;border:0.5px solid #E2E8F0;padding:18px 20px;margin-bottom:12px;">
 <p style="font-size:11px;color:#94A3B8;font-weight:600;letter-spacing:0.05em;margin:0 0 8px;">${escapeHtml(title)}</p><table style="width:100%;border-collapse:collapse;">${rows}</table></div>`
   const kv = (o: unknown) => Object.entries((o as Record<string, unknown>) ?? {}).map(([k, v]) => row(k, v)).join('') || row('none', '—')
+  const courts = (r.bookings_by_court ?? {}) as Record<string, Record<string, { count: number; lkr: number }>>
+  const byCourt = Object.entries(courts).flatMap(([court, d]) =>
+    Object.entries(d).map(([dur, v]) => row(`${court} · ${dur}`, `${n(v.count)} (${lkr(v.lkr)})`))).join('') || row('none', '—')
   const quiet = n(b.created) === 0 && n(p.live_succeeded_count) === 0 && !actions.length
 
   const html = shell(`
@@ -127,6 +130,7 @@ ${section('PAYMENTS (LIVE, VERIFIED, DEDUPLICATED)',
     row('Of which confirmed as bookings', lkr(p.live_confirmed_bookings_lkr)) + row('Unreconciled payments (open)', n(p.unreconciled_open)) +
     row('Attempts stuck > 1h', n(p.stuck_initiated_over_1h)) + row('Duplicate provider notifications', n(p.duplicate_notifications)) +
     row('Test/sandbox successes (not revenue)', n(p.non_live_succeeded_count)))}
+${section('CONFIRMED BOOKINGS BY COURT AND DURATION (LIVE)', byCourt)}
 ${section('PAYMENT ATTEMPTS BY STATUS', kv(p.attempts_by_status))}
 ${section('NOTIFICATION RESULTS', kv(p.notification_results))}
 ${section('BOOKINGS', row('Bookings created', n(b.created)) + row('Holds created', n(b.holds_created)) +

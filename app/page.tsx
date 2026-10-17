@@ -2,10 +2,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
+import { allowsMultiHour, courtFacts, hourlyPrices, lkr } from '@/lib/courtInfo'
 
 interface Court {
   id: string; name: string; has_half_court: boolean
   operating_start: string; operating_end: string
+  half_court_cutoff: string | null; max_consecutive_slots: number | null
   locations: { name: string; address: string }
   sport_types: { name: string }
   court_pricing: { tier_name: string; price_lkr: number; applies_to: string }[]
@@ -70,10 +72,7 @@ export default function LandingPage() {
     load()
   }, [])
 
-  const getMinPrice = (pricing: Court['court_pricing']) => {
-    if (!pricing || pricing.length === 0) return 'N/A'
-    return `LKR ${Math.min(...pricing.map(p => p.price_lkr)).toLocaleString()}`
-  }
+
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -269,33 +268,44 @@ export default function LandingPage() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {courts.map(court => (
-                <div key={court.id} style={{ background: '#fff', border: '0.5px solid #E2E8F0', borderRadius: '14px', padding: '18px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '14px' }}>
-                  <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                    <div style={{ width: '52px', height: '52px', background: '#ECFDF5', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
+              {courts.map(court => {
+                const prices = hourlyPrices(court)
+                const from = Math.min(...[prices.full, prices.half].filter((x): x is number => x !== null))
+                return (
+                <article key={court.id} aria-labelledby={`court-${court.id}`} style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '18px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: '14px' }}>
+                  <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', minWidth: 0 }}>
+                    <div aria-hidden="true" style={{ width: '52px', height: '52px', background: '#ECFDF5', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
                       {SPORT_ICONS[court.sport_types.name] || '🏟'}
                     </div>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <p style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A', margin: 0 }}>{court.name}</p>
-                        <span style={{ fontSize: '11px', background: '#ECFDF5', color: '#065F46', padding: '2px 8px', borderRadius: '20px', fontWeight: '500' }}>{court.sport_types.name}</span>
-                      </div>
-                      <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 4px' }}>📍 {court.locations.name}</p>
+                    <div style={{ minWidth: 0 }}>
+                      <h3 id={`court-${court.id}`} style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px' }}>{court.name}</h3>
+                      <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 8px' }}>📍 {court.locations.name}</p>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 8px', display: 'grid', gap: '3px' }}>
+                        {courtFacts(court).map(line => (
+                          <li key={line} style={{ fontSize: '13px', color: '#334155' }}>{line}</li>
+                        ))}
+                      </ul>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '11px', background: '#F1F5F9', color: '#475569', padding: '2px 8px', borderRadius: '20px' }}>🕐 {court.operating_start.slice(0,5)} - {court.operating_end.slice(0,5)}</span>
-                        {court.has_half_court && <span style={{ fontSize: '11px', background: '#EFF6FF', color: '#1D4ED8', padding: '2px 8px', borderRadius: '20px' }}>Half court</span>}
+                        {court.has_half_court && <span style={{ fontSize: '12px', background: '#EFF6FF', color: '#1D4ED8', padding: '3px 9px', borderRadius: '20px' }}>Full &amp; half court</span>}
+                        {allowsMultiHour(court) && <span style={{ fontSize: '12px', background: '#ECFDF5', color: '#065F46', padding: '3px 9px', borderRadius: '20px' }}>1 or 2 hour bookings</span>}
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', width: isMobile ? '100%' : 'auto' }}>
-                    <div>
-                      <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 2px' }}>Starting from</p>
-                      <p style={{ fontSize: '18px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>{getMinPrice(court.court_pricing)}</p>
-                    </div>
-                    <a href={`/courts/${court.id}`} style={{ background: '#1B6B3A', color: '#fff', padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', textDecoration: 'none', whiteSpace: 'nowrap' }}>View slots</a>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', width: isMobile ? '100%' : 'auto', flexShrink: 0 }}>
+                    {Number.isFinite(from) && (
+                      <div>
+                        <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 2px' }}>From</p>
+                        <p style={{ fontSize: '18px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>{lkr(from)}<span style={{ fontSize: '12px', fontWeight: 600, color: '#64748B' }}> / hour</span></p>
+                      </div>
+                    )}
+                    <a href={`/courts/${court.id}`} className="ag-tap" aria-label={`View available slots for ${court.name}`}
+                      style={{ background: '#1B6B3A', color: '#fff', padding: '12px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: '700', textDecoration: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center' }}>
+                      View slots
+                    </a>
                   </div>
-                </div>
-              ))}
+                </article>
+                )
+              })}
             </div>
           )}
         </div>
@@ -387,7 +397,7 @@ export default function LandingPage() {
       {/* ── WHO WE ARE ── */}
       <section id="about" style={{ background: '#F0FDF4', padding: isMobile ? '48px 20px' : '60px 24px', borderTop: '0.5px solid #D1FAE5', borderBottom: '0.5px solid #D1FAE5' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: '12px', color: '#059669', fontWeight: '700', letterSpacing: '0.1em', margin: '0 0 8px' }}>WHO WE ARE</p>
+          <p style={{ fontSize: '12px', color: '#047857', fontWeight: '700', letterSpacing: '0.1em', margin: '0 0 8px' }}>WHO WE ARE</p>
           <h2 style={{ fontSize: isMobile ? '24px' : '28px', fontWeight: '700', color: '#0B2818', margin: '0 0 14px', letterSpacing: '-0.02em' }}>Built by players, for players.</h2>
           <p style={{ fontSize: '14px', color: '#374151', margin: '0 auto 32px', maxWidth: '620px', lineHeight: '1.8' }}>
             ArenaGrade is a Sri Lankan sports infrastructure company. We plan, design, and construct basketball, squash, and netball courts to international standards — and we run this platform so every court we build stays full, every player stays active, and the game keeps growing.
@@ -429,7 +439,7 @@ export default function LandingPage() {
             <div style={{ width: '26px', height: '26px', background: '#1B6B3A', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' }}>🏟</div>
             <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>ArenaGrade</span>
           </div>
-          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)', margin: 0 }}>© 2026 ArenaGrade. All rights reserved. Sri Lanka.</p>
+          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.72)', margin: 0 }}>© 2026 ArenaGrade. All rights reserved. Sri Lanka.</p>
           <div style={{ display: 'flex', gap: '16px' }}>
             {[
               { label: 'Book a court', href: '#book' },
@@ -438,7 +448,7 @@ export default function LandingPage() {
               { label: 'Refund Policy', href: '/refund-policy' },
               { label: 'Contact', href: 'mailto:info@arenagrade.lk' },
             ].map(l => (
-              <a key={l.label} href={l.href} style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>{l.label}</a>
+              <a key={l.label} href={l.href} style={{ fontSize: '12px', color: 'rgba(255,255,255,0.72)', textDecoration: 'none' }}>{l.label}</a>
             ))}
           </div>
         </div>

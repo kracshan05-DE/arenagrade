@@ -48,6 +48,9 @@ export default function PaymentPage() {
   const slotId = params.slotId as string
 
   const [slot, setSlot] = useState<Slot | null>(null)
+  // All hours of the hold (2 for a two-hour Solo Court reservation). Display
+  // only — the server charges exactly the sum of these slots' prices.
+  const [group, setGroup] = useState<Slot[]>([])
   const [court, setCourt] = useState<Court | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [user, setUser] = useState<any>(null)
@@ -90,6 +93,11 @@ export default function PaymentPage() {
       }
 
       setSlot(slotData)
+      const { data: held } = await supabase.from('slots').select('*')
+        .eq('court_id', slotData.court_id).eq('locked_by', currentUser.id)
+        .eq('status', 'locked').eq('lock_expires_at', slotData.lock_expires_at)
+        .order('slot_date').order('start_time')
+      setGroup((held && held.length ? held : [slotData]) as Slot[])
       setTimeLeft(remaining)
 
       const { data: courtData } = await supabase
@@ -133,6 +141,8 @@ export default function PaymentPage() {
   // Payment is started on the server (amount from the slot, signed request).
   // The booking is confirmed only by PayHere's verified server notification —
   // never by this page.
+  const total = group.length ? group.reduce((sum, g) => sum + Number(g.price_lkr), 0) : Number(slot?.price_lkr ?? 0)
+
   const startPayment = async () => {
     if (!slot) return
     setProcessing(true)
@@ -254,7 +264,7 @@ export default function PaymentPage() {
                 </div>
                 <div>
                   <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Time</p>
-                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{slot.start_time.slice(0,5)} - {slot.end_time.slice(0,5)}</p>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{(group[0] ?? slot).start_time.slice(0,5)} - {(group[group.length - 1] ?? slot).end_time.slice(0,5)}{group.length > 1 ? ` (${group.length} hours)` : ''}</p>
                 </div>
                 <div>
                   <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Court type</p>
@@ -269,7 +279,7 @@ export default function PaymentPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '14px', borderTop: '0.5px solid #F1F5F9' }}>
               <div>
                 <p style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 2px' }}>Total amount</p>
-                <p style={{ fontSize: '28px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>LKR {slot.price_lkr.toLocaleString()}</p>
+                <p style={{ fontSize: '28px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>LKR {total.toLocaleString()}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 2px' }}>Payment via</p>
@@ -332,7 +342,7 @@ export default function PaymentPage() {
               marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
             }}
           >
-            {processing ? 'Redirecting to PayHere...' : `Pay LKR ${slot?.price_lkr.toLocaleString()} with PayHere`}
+            {processing ? 'Redirecting to PayHere...' : `Pay LKR ${total.toLocaleString()} with PayHere`}
           </button>
         ) : (
           <div style={{ background: '#FFFBEB', border: '0.5px dashed #F59E0B', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>

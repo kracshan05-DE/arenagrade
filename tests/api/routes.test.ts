@@ -394,3 +394,26 @@ describe('health', () => {
     expect(await (await health()).json()).toEqual({ ok: true })
   })
 })
+
+describe('two-hour Solo Court reservation through the API', () => {
+  it('initiate charges LKR 5,000 for both hours; notify confirms both; SMS shows the full range', async () => {
+    const court = (await db.su.query(
+      `insert into public.courts (name, has_half_court, operating_start, operating_end, slot_duration_hrs, max_consecutive_slots)
+       values ('The Solo Court', false, '05:00', '22:00', 1, 2) returning id`)).rows[0].id
+    const d = colomboDate(25)
+    const a = await db.slot(court, d, '18:00', '19:00', 'full_court', { price: 2500 })
+    const b = await db.slot(court, d, '19:00', '20:00', 'full_court', { price: 2500 })
+    const u = await verifiedCustomer('0775556666')
+    await db.as('authenticated', u, `select public.hold_slots($1::uuid[])`, [[a, b]])
+
+    const { body } = await initiate(u, b) // any hour of the reservation
+    expect(body.fields.amount).toBe('5000.00')
+    const r = await payNotify(notifyRequest({ order: body.fields.order_id, amount: body.fields.amount }))
+    expect(r.status).toBe(200)
+    expect((await db.slotRow(a)).status).toBe('booked')
+    expect((await db.slotRow(b)).status).toBe('booked')
+    const msg = smsTo('94775556666')[0].body.message as string
+    expect(msg).toContain('18:00-20:00')
+    expect(msg).toContain('5,000')
+  })
+})
