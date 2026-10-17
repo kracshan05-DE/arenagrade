@@ -26,14 +26,15 @@ code lets anyone confirm bookings without paying.
 |---|---|
 | Code reviewed | All 45 source files, every browser→Supabase call, both API routes |
 | Code modified | See section I (database migrations, 10 server routes, 9 pages) |
-| Tests executed | 127 (unit 39 · database 67 · route-level 21) — **all passed** |
+| Tests executed | 136 (unit 39 · database 76 · route-level 21) — **all passed** |
 | Test-quality check | Suite run against a deliberately broken hold function: **13 tests fail**, proving the concurrency tests detect double booking |
 | Build | `npm run build` passes (Next.js 16.3.8), build-time guard passes |
 | Types | `tsc --noEmit` clean |
 | Lint | 44 errors / 20 warnings — same per-file errors as before the work (pre-existing UI debt, not new) |
 | Dependencies | `npm audit --omit=dev`: **0** vulnerabilities (was 1 critical, 4 high) |
 | Client bundles | No secret names or server-only functions present |
-| Pending external checks | Real schema/RLS, migration apply, PayHere sandbox, Text.lk/Resend delivery, Vercel env/plan, Supabase backups |
+| Schema & policies | **Verified** from production discovery output (2026-10-18); test fixture mirrors it, including the original policies |
+| Pending external checks | Migration apply on staging/production, PayHere sandbox, Text.lk/Resend delivery, Vercel env, Supabase backups |
 
 ---
 
@@ -59,11 +60,18 @@ Vercel Cron (+ optional Supabase pg_cron) ──► /api/cron/daily-report
 time and `court_type` (`full_court`, `half_a`, `half_b`). Half-court rows are only
 generated for hours starting before `courts.half_court_cutoff`.
 
-**Schema status:** the real schema is not in Git. Tables and columns were
-reconstructed from application queries in
-`supabase/tests/fixtures/01_inferred_base_schema.sql` (**inferred, types
-assumed**). Run `supabase/discovery/*.sql` and compare before applying
-migrations. New objects added by the migrations:
+**Schema status:** verified on 2026-10-18 from the read-only discovery queries
+(PostgreSQL 17.6, no enums, varchar status columns with CHECK constraints).
+`supabase/tests/fixtures/01_production_base_schema.sql` mirrors it, including
+the original RLS policies, `handle_new_user` and `is_super_admin`. The schema is
+still not in Git: commit a `supabase db dump --schema-only`. Adjustments made
+after verification: the slot natural key ignores production's *partial*
+`idx_slots_active`; `bookings.idempotency_key` is already unique; legacy
+`payment_audit` inserts use `ON CONFLICT DO NOTHING`; public catalogue reads keep
+`is_active = true`; storage policies (already correct) are left alone; the
+existing `handle_new_user` is hardened. The existing pg_cron job
+`release-expired-locks` is compatible and can stay. New objects added by the
+migrations:
 
 | Object | Purpose |
 |---|---|
@@ -136,6 +144,7 @@ Vercel).
 
 | # | Sev | Where | What could happen | Fix | Verified by |
 |---|---|---|---|---|---|
+| 0 | P0 | production policy `customers_update_own_profile` (no column limit) | **Any customer can make themselves super_admin** (and self-verify their phone) with one API call | Trigger blocks browser changes to role/phone/phone_verified; policies replaced | `production-exploits.test.ts`: works before, fails after |
 | 1 | P0 | `payment/page.tsx` `completePayment` | Anyone signed in books any slot without paying ("Simulate Payment" live) | Removed; simulator only server-side, 404 unless `PAYMENT_SIMULATION=enabled` and not production; build fails if enabled in production | route tests, predeploy tests |
 | 2 | P0 | payment page inserts `bookings` / updates `slots` from browser | Confirmed bookings at any price; slots marked booked directly | Bookings created only by `payment_apply_notification` after PayHere signature + amount + hold checks; RLS/grants remove browser writes | DB + RLS + route tests |
 | 3 | P0 | `verify/page.tsx` | OTP generated with `Math.random` in browser, readable from DB, profile `phone_verified` set by browser | Server CSPRNG, HMAC-stored, attempts/expiry/one-time in DB; trigger blocks browser changes to role/phone/phone_verified | DB + route tests |
@@ -248,7 +257,7 @@ emails are redacted. OTP values are never logged.
 |---|---|
 | `npm run typecheck` | pass |
 | `npm run build` (predeploy guard + `next build`) | pass |
-| `npm run test` | **127 passed, 0 failed, 0 skipped** (6 files, ~11 s) |
+| `npm run test` | **136 passed, 0 failed, 0 skipped** (7 files, ~12 s) |
 | `PGTEST_MUTATION=naive_hold npm run test:db -- tests/db/booking-integrity.test.ts` | 13 failed (expected — proves the tests catch double booking) |
 | `npm audit --omit=dev` | 0 vulnerabilities |
 | `npx eslint .` | 44 errors, 20 warnings (pre-existing; unchanged per file) |
@@ -300,20 +309,22 @@ privacy (Text.lk wording).
 ## J. Manual actions required from you
 
 1. **Now:** keep online booking unavailable on the live site until this branch is deployed (the old simulate button is live).
-2. Run `supabase/discovery/01…03` (read-only) and send the JSON; or commit a `supabase db dump --schema-only`.
-3. Decide what to do with existing bookings created by the simulate button (`payment_audit` rows with `simulated = true`).
+2. **Check the 3 `super_admin` accounts are all yours** — any customer could have promoted themselves through the role hole. Demote anything unexpected.
+3. **Decide about the 7 existing confirmed bookings.** `payment_audit` has 0 rows (the old code's audit insert was silently blocked), so none has a recorded online payment — they came from the simulate button.
+3a. Resolve the one existing clash: a **blocked** slot overlapping a **booked** one (slots `28e73225-2746-44a5-a23b-9b103614545e` / `40c2fb9f-4354-4376-a7b3-a09f906f0f76`).
+3b. Commit a `supabase db dump --schema-only` so the schema lives in Git.
 4. Create a staging Supabase project (or branch), load the schema, apply `supabase/migrations` in order, run `02_integrity_checks.sql`.
 5. Confirm the Supabase plan's backups/PITR, and take a manual backup before the production migration.
 6. Vercel: set the environment variables (Production and Preview separately; sandbox PayHere in Preview only).
 7. PayHere: complete merchant registration; sandbox credentials first; register the domains.
 8. Text.lk: approve the "ArenaGrade" sender ID (needs the BR number); top up balance.
 9. Resend: create the account, verify `arenagrade.lk` for sending, set `EMAIL_FROM`.
-10. Optional: enable pg_cron/pg_net and the Vault secret for an exact-22:00 report.
+10. Optional: enable **pg_net** (pg_cron is already installed) and the Vault secret for an exact-22:00 report.
 11. Add an external uptime monitor on `https://arenagrade.lk/api/health` (for example UptimeRobot, free).
 12. Enable Vercel deployment-failure notifications.
 13. Review: one phone number may currently verify several accounts — allow or restrict?
 14. Approve purging plaintext codes in the legacy `otp_verifications` table.
-15. Link GitHub to Claude, or apply the patch yourself (Claude cannot push from this session).
+15. Install the Claude GitHub App on your account (GitHub is linked, but pushes are refused without the app), or push the patch yourself.
 
 ---
 

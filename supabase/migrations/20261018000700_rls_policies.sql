@@ -4,8 +4,8 @@
 -- This migration DROPS every existing policy on the ArenaGrade public tables
 -- listed below and replaces them with the set defined here. Compare with the
 -- "policies" section of supabase/discovery/01_schema_metadata.json first.
--- Storage policies are ADDED, not dropped: remove any older permissive
--- storage.objects policies by hand after reviewing the discovery output.
+-- Verified against production policies on 2026-10-18 (see docs). Tables not
+-- listed (cities, districts, orders, order_items) and storage are untouched.
 --
 -- Model:
 --   * anon + authenticated may READ public catalogue data (courts, slots, ...)
@@ -35,16 +35,21 @@ begin
   end loop;
 end $$;
 
--- Catalogue tables: public read, admin write.
+-- Catalogue tables: public read of active rows (as before), admin full access
+-- (admins also need inactive rows), with WITH CHECK so admin writes are
+-- validated too.
 do $$
 declare
   t text;
 begin
-  foreach t in array array['locations', 'sport_types', 'courts', 'court_pricing', 'products', 'court_portfolio'] loop
-    execute format('create policy %I on public.%I for select to anon, authenticated using (true)', t || '_public_read', t);
-    execute format('create policy %I on public.%I for all to authenticated using ((select public.is_super_admin())) with check ((select public.is_super_admin()))', t || '_admin_write', t);
+  foreach t in array array['locations', 'sport_types', 'courts', 'products', 'court_portfolio'] loop
+    execute format('create policy %I on public.%I for select to anon, authenticated using (is_active = true)', t || '_public_read', t);
+    execute format('create policy %I on public.%I for all to authenticated using ((select public.is_super_admin())) with check ((select public.is_super_admin()))', t || '_admin_all', t);
   end loop;
 end $$;
+create policy court_pricing_public_read on public.court_pricing for select to anon, authenticated using (true);
+create policy court_pricing_admin_all on public.court_pricing for all to authenticated
+  using ((select public.is_super_admin())) with check ((select public.is_super_admin()));
 
 -- Slots: public read (availability). Admins may insert/delete/update for slot
 -- generation and maintenance; customer holds use hold_slot()/release_hold().
@@ -98,20 +103,8 @@ revoke insert, update, delete, truncate on
 from anon;
 revoke insert, delete, truncate on public.profiles from authenticated;
 
--- Storage: images bucket — public read, admin write.
-drop policy if exists arenagrade_images_public_read on storage.objects;
-drop policy if exists arenagrade_images_admin_insert on storage.objects;
-drop policy if exists arenagrade_images_admin_update on storage.objects;
-drop policy if exists arenagrade_images_admin_delete on storage.objects;
-create policy arenagrade_images_public_read on storage.objects for select to anon, authenticated
-  using (bucket_id = 'images');
-create policy arenagrade_images_admin_insert on storage.objects for insert to authenticated
-  with check (bucket_id = 'images' and (select public.is_super_admin()));
-create policy arenagrade_images_admin_update on storage.objects for update to authenticated
-  using (bucket_id = 'images' and (select public.is_super_admin()))
-  with check (bucket_id = 'images' and (select public.is_super_admin()));
-create policy arenagrade_images_admin_delete on storage.objects for delete to authenticated
-  using (bucket_id = 'images' and (select public.is_super_admin()));
+-- Storage: production policies on the images bucket (public read, admin
+-- upload/delete) were verified correct on 2026-10-18 and are left unchanged.
 
 -- Internal helper functions must never be callable through the API.
 revoke all on function public._lock_slot_neighbourhood(uuid, date, time, time, text) from public, anon, authenticated, service_role;

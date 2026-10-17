@@ -50,10 +50,12 @@ export class TestDb {
 
   async user(opts: { role?: string; phoneVerified?: boolean; phone?: string } = {}) {
     const id = randomUUID()
-    await this.su.query(`insert into auth.users (id, email) values ($1, $2)`, [id, `${id.slice(0, 8)}@test.local`])
+    // Production's handle_new_user trigger creates the profile on signup.
+    await this.su.query(`insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, '{"full_name":"Test User"}')`,
+      [id, `${id.slice(0, 8)}@test.local`])
     await this.su.query(
-      `insert into public.profiles (id, full_name, phone, phone_verified, role) values ($1, $2, $3, $4, $5)`,
-      [id, 'Test User', opts.phone ?? null, opts.phoneVerified ?? false, opts.role ?? 'customer'],
+      `update public.profiles set phone = $2, phone_verified = $3, role = $4 where id = $1`,
+      [id, opts.phone ?? null, opts.phoneVerified ?? false, opts.role ?? 'customer'],
     )
     return id
   }

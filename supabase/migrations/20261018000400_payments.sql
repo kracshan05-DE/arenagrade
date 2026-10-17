@@ -320,7 +320,8 @@ begin
     insert into public.payment_audit (payhere_payment_id, entity_type, entity_id, event_type, amount_lkr, raw_payload)
     values (coalesce(p_provider_payment_id, v_attempt.order_id), 'booking', v_slot.id, 'completed', v_attempt.amount_lkr,
             jsonb_build_object('order_id', v_attempt.order_id, 'provider', p_provider,
-                               'environment', v_attempt.environment, 'simulated', p_provider = 'simulator'));
+                               'environment', v_attempt.environment, 'simulated', p_provider = 'simulator'))
+    on conflict do nothing;
 
     perform public.write_audit(v_attempt.user_id, 'provider', 'booking.confirmed', 'booking', v_booking_id::text,
       jsonb_build_object('order_id', v_attempt.order_id, 'amount_lkr', v_attempt.amount_lkr));

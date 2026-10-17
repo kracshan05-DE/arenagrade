@@ -1,14 +1,13 @@
 # Database changes
 
 `migrations/` holds the production-readiness changes, applied in filename order.
-They assume the existing ArenaGrade tables (see `discovery/README.md`), and were
-written against a schema **inferred from the application code**.
+They were checked against the production schema and policies captured with
+`discovery/` on 2026-10-18 (mirrored in `tests/fixtures/01_production_base_schema.sql`).
 
 ## Before applying
 
-1. Run the read-only queries in `discovery/` and compare with
-   `tests/fixtures/01_inferred_base_schema.sql`. Adjust column names/types in the
-   migrations wherever the real schema differs.
+1. If the database changed since 2026-10-18, re-run the read-only queries in
+   `discovery/` and compare with `tests/fixtures/01_production_base_schema.sql`.
 2. `20261018000700_rls_policies.sql` drops and replaces the policies on the
    ArenaGrade tables. Keep the discovery output so the old policies can be
    restored if needed.

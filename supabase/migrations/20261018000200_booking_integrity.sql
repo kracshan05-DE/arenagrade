@@ -23,16 +23,18 @@ update public.slots
 set status = 'available', locked_by = null, lock_expires_at = null, version = coalesce(version, 0) + 1
 where status::text = 'locked' and (lock_expires_at is null or lock_expires_at <= now());
 
--- 1. Natural key: one slot row per court/date/start/court type. The recurring
---    screen already relies on this key (upsert onConflict). Create it only if
---    no equivalent unique index exists.
+-- 1. Natural key: one slot row per court/date/start/court type, whatever the
+--    status. Production only has idx_slots_active, which is PARTIAL (locked/
+--    booked only), so duplicate available/blocked rows are currently possible
+--    and the recurring screen's upsert(onConflict) has no matching key.
+--    Verified 2026-10-18: duplicate_slot_keys = 0, so this is safe to create.
 do $$
 begin
   if not exists (
     select 1
     from pg_index i
     join pg_class t on t.oid = i.indrelid
-    where t.oid = 'public.slots'::regclass and i.indisunique
+    where t.oid = 'public.slots'::regclass and i.indisunique and i.indpred is null
       and (select array_agg(a.attname::text order by a.attname)
            from pg_attribute a where a.attrelid = t.oid and a.attnum = any (i.indkey))
           = array['court_id', 'court_type', 'slot_date', 'start_time']
@@ -60,11 +62,10 @@ alter table public.slots
 create index if not exists slots_court_date_idx on public.slots (court_id, slot_date);
 create index if not exists slots_locked_by_idx on public.slots (locked_by) where status::text = 'locked';
 
--- 4. One live booking per slot; one booking per payment order.
+-- 4. One live booking per slot.
 create unique index if not exists bookings_one_live_per_slot
   on public.bookings (slot_id) where status::text in ('confirmed', 'cancellation_requested');
-create unique index if not exists bookings_idempotency_key_uniq
-  on public.bookings (idempotency_key) where idempotency_key is not null;
+-- (bookings.idempotency_key is already UNIQUE in production.)
 
 -- ---------------------------------------------------------------------------
 -- Internal: lock every slot that could conflict with (court, date, start, end,

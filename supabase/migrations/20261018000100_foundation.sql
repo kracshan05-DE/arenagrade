@@ -167,3 +167,11 @@ begin
 end $$;
 revoke all on function public.rate_limit_hit(text, integer, integer) from public, anon, authenticated;
 grant execute on function public.rate_limit_hit(text, integer, integer) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Harden the existing signup trigger (production: SECURITY DEFINER without a
+-- fixed search_path, executable by API roles). Its body already uses the fully
+-- qualified public.profiles, so pinning search_path does not change behaviour.
+-- ---------------------------------------------------------------------------
+alter function public.handle_new_user() set search_path = '';
+revoke all on function public.handle_new_user() from public, anon, authenticated;
