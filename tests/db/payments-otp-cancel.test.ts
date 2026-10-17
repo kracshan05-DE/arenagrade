@@ -10,7 +10,7 @@ afterAll(async () => { await db?.close() })
 
 const key = (...parts: unknown[]) => createHash('sha256').update(parts.join('|')).digest('hex')
 
-async function createAttempt(uid: string, slotId: string, provider = 'payhere', env = 'sandbox') {
+async function createAttempt(uid: string, slotId: string, provider = 'payhere', env = 'live') {
   const r = await db.service<{ r: Record<string, string> }>(
     `select public.payment_create_attempt($1, $2, $3, $4) as r`, [uid, slotId, provider, env])
   return r[0].r
@@ -429,8 +429,9 @@ describe('jobs, notifications and the daily report', () => {
       live.push(a.order_id)
     }
     const st = await db.slot(court, colomboDate(50), '12:00', '13:00', 'full_court', { price: 9999 })
-    await db.hold(u, st)
-    const ta = await createAttempt(u, st, 'simulator', 'test')
+    const tester = await db.user({ role: 'super_admin', phoneVerified: true }) // test payments are admin-only
+    await db.hold(tester, st)
+    const ta = await createAttempt(tester, st, 'simulator', 'test')
     await notify(ta.order_id, 2, ta.amount, { provider: 'simulator' })
 
     const t1 = (await db.su.query(`select clock_timestamp() t`)).rows[0].t

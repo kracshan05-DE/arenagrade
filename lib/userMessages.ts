@@ -33,7 +33,15 @@ const MESSAGES: Record<string, string> = {
   refund_not_found: 'Refund not found.',
   recurring_invalid: 'The recurring booking details are invalid.',
   recurring_range_too_long: 'The recurring date range is too long (max ~13 months).',
-  server_error: 'Something went wrong on our side. Please try again.',
+  booking_admin_only: 'Online booking opens soon. Right now only ArenaGrade staff can make test bookings.',
+  booking_closed: 'Online booking is paused right now. Please check back soon.',
+  test_payments_admin_only: 'Test payments are only available to ArenaGrade staff.',
+  invalid_mode: 'That booking mode is not valid.',
+  slots_not_consecutive: 'Please choose hours that follow each other on the same court and day.',
+  too_many_consecutive_slots: 'That is longer than this court allows in one booking.',
+  invalid_selection: 'Please choose the time again.',
+  pricing_missing: 'Prices are not set for this court yet.',
+  server_error:'Something went wrong on our side. Please try again.',
 }
 
 export function userMessage(code: string | null | undefined, fallback = 'Something went wrong. Please try again.') {

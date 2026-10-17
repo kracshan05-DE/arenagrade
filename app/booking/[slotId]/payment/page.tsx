@@ -6,6 +6,9 @@ import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { apiPost } from '@/lib/apiClient'
 import { userMessage } from '@/lib/userMessages'
+import { rpcErrorCode } from '@/lib/apiClient'
+import { useBookingMode } from '@/lib/useBookingMode'
+import BookingModeBanner from '@/components/BookingModeBanner'
 
 type InitResponse =
   | { mode: 'payhere'; action: string; fields: Record<string, string>; hold_expires_at: string }
@@ -62,6 +65,7 @@ export default function PaymentPage() {
   const [payError, setPayError] = useState('')
   const searchParams = useSearchParams()
   const cancelledAtGateway = searchParams.get('cancelled') === '1'
+  const booking = useBookingMode()
 
   useEffect(() => {
     const init = async () => {
@@ -172,6 +176,23 @@ export default function PaymentPage() {
     setProcessing(false)
   }
 
+  // Pre-launch admin test booking: confirms the admin's own hold without any
+  // payment. The database records it as a test booking (never revenue) and
+  // refuses it for anyone who is not an admin.
+  const confirmTestBooking = async () => {
+    if (!slot) return
+    if (!window.confirm('Confirm this as a TEST booking with no payment? It will be deleted before launch.')) return
+    setProcessing(true)
+    setPayError('')
+    const { data, error: rpcError } = await supabase.rpc('admin_confirm_test_booking', { p_slot_id: slotId })
+    if (rpcError || !data) {
+      setPayError(userMessage(rpcErrorCode(rpcError), 'Could not confirm the test booking.'))
+      setProcessing(false)
+      return
+    }
+    router.push(`/booking/${slotId}/payment/success?order=${encodeURIComponent(data.order_id as string)}`)
+  }
+
   const simulate = async (outcome: 'success' | 'failed') => {
     if (!simOrder) return
     setProcessing(true)
@@ -225,6 +246,7 @@ export default function PaymentPage() {
       )}
 
       <div style={{ maxWidth: '520px', margin: '32px auto', padding: '0 16px 120px' }}>
+        <BookingModeBanner mode={booking.mode} isAdmin={booking.isAdmin} />
 
         {/* Steps */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
@@ -358,6 +380,13 @@ export default function PaymentPage() {
               </button>
             </div>
           </div>
+        )}
+
+        {booking.testMode && (
+          <button onClick={confirmTestBooking} disabled={processing || timeLeft <= 0} className="ag-tap"
+            style={{ width: '100%', background: '#fff', color: '#92400E', border: '2px dashed #D97706', borderRadius: '12px', padding: '14px', fontSize: '15px', fontWeight: 700, cursor: processing || timeLeft <= 0 ? 'not-allowed' : 'pointer', marginBottom: '12px' }}>
+            Admin: confirm as test booking (no payment)
+          </button>
         )}
 
         <p style={{ textAlign: 'center', fontSize: '12px', color: '#94A3B8', margin: '0 0 20px' }}>

@@ -7,8 +7,9 @@ import { join } from 'node:path'
 import { TestDb, colomboDate } from './helpers'
 
 const cleanupSql = readFileSync(join(__dirname, '..', '..', 'supabase', 'data', '02_cleanup_test_bookings.sql'), 'utf8')
+// The script ships with the 7 real IDs; tests swap in their own test IDs.
 const withIds = (ids: string[]) => cleanupSql.replace(
-  "('00000000-0000-0000-0000-000000000000')", ids.map((i) => `('${i}')`).join(',\n  '))
+  /insert into cleanup_target \(booking_id\) values[\s\S]*?\);[^\n]*\n/, `insert into cleanup_target (booking_id) values ${ids.map((i) => `('${i}')`).join(', ')};\n`)
 
 let db: TestDb
 beforeEach(async () => { db = await TestDb.create() })
@@ -88,37 +89,72 @@ describe('02_cleanup_test_bookings.sql on the CURRENT production schema (before 
   })
 })
 
-describe('01_court_setup.sql', () => {
+describe('01_court_setup.sql (real St. Mary\'s id from the inventory)', () => {
   const setupSql = readFileSync(join(__dirname, '..', '..', 'supabase', 'data', '01_court_setup.sql'), 'utf8')
-  it('configures both courts, reprices future unused slots, fixes the Solo layout, generates 17 Solo slots/day', async () => {
-    // Starting point: St. Mary's with 2-hour slots and old per-slot prices; a
-    // misconfigured Solo court with halves and 2-hour slots.
-    const sm = (await db.su.query(`insert into public.courts (name, has_half_court, operating_start, operating_end, slot_duration_hrs) values ('St. Mary''s', true, '06:00', '22:00', 2) returning id`)).rows[0].id
-    const so = (await db.su.query(`insert into public.courts (name, has_half_court, operating_start, operating_end, slot_duration_hrs, is_active) values ('Solo', true, '06:00', '22:00', 2, false) returning id`)).rows[0].id
+  const SM = '8c39b8ff-8ae5-4c14-89f7-d74af6b05be7'
+  async function productionLikeStMarys() {
+    const loc = (await db.su.query(`insert into public.locations (name) values ('ArenaGrade Bambalapitiya') returning id`)).rows[0].id
+    const sport = (await db.su.query(`insert into public.sport_types (name) values ('Basketball') returning id`)).rows[0].id
+    await db.su.query(`insert into public.courts (id, location_id, sport_type_id, name, has_half_court, half_court_cutoff, operating_start, operating_end, slot_duration_hrs)
+      values ($1, $2, $3, 'St Mary''s Basketball Court Bambalapitiya', true, '14:00', '07:00', '23:00', 2)`, [SM, loc, sport])
+    await db.su.query(`insert into public.court_pricing (court_id, tier_name, time_from, time_to, price_lkr, applies_to) values
+      ($1, 'Full Court Off-Peak', '06:00', '14:00', 4000, 'full_court'), ($1, 'Full Court Peak', '14:00', '22:00', 5000, 'full_court'),
+      ($1, 'Half Court Off-Peak', '07:00', '14:00', 3000, 'half_a'), ($1, 'Half Court Off-Peak', '07:00', '14:00', 3000, 'half_b')`, [SM])
+    return { loc, sport }
+  }
+
+  it('St. Mary\'s: 2-hour slots repriced to LKR 12,000 / 6,000; Solo Court created once with 17 slots/day at LKR 2,500', async () => {
+    const { loc } = await productionLikeStMarys()
     const d = colomboDate(3)
-    const smFree = await db.slot(sm, d, '08:00', '10:00', 'full_court', { price: 5000 })
-    const smBooked = await db.slot(sm, d, '10:00', '12:00', 'full_court', { price: 5000, status: 'booked' })
-    const soOldFree = await db.slot(so, d, '06:00', '08:00', 'half_a', { price: 1000 })
-    const soOldBooked = await db.slot(so, d, '08:00', '10:00', 'full_court', { price: 4000, status: 'booked' })
+    const fullFree = await db.slot(SM, d, '15:00', '17:00', 'full_court', { price: 5000 })
+    const halfFree = await db.slot(SM, d, '09:00', '11:00', 'half_a', { price: 3000 })
+    const booked = await db.slot(SM, d, '17:00', '19:00', 'full_court', { price: 5000, status: 'booked' })
 
-    await db.su.query(setupSql.replace('00000000-0000-0000-0000-000000000001', sm).replace('00000000-0000-0000-0000-000000000002', so))
+    await db.su.query(setupSql)
+    await db.su.query(setupSql) // re-run: no duplicate court, no duplicate slots
 
-    const solo = (await db.su.query(`select * from public.courts where id = $1`, [so])).rows[0]
-    expect(solo).toMatchObject({ name: 'The Solo Court', has_half_court: false, slot_duration_hrs: 1, max_consecutive_slots: 2, is_active: true })
-    expect(Number((await db.slotRow(smFree)).price_lkr)).toBe(12000)          // 2h x 6000
-    expect(Number((await db.slotRow(smBooked)).price_lkr)).toBe(5000)         // booked: untouched
-    expect(await db.slotRow(soOldFree)).toBeUndefined()                        // unused misfit removed
-    expect((await db.slotRow(soOldBooked)).status).toBe('booked')             // booked misfit kept
-    const tomorrow = colomboDate(1)
-    const solo1h = (await db.su.query(`select count(*)::int n, min(price_lkr)::int lo, max(price_lkr)::int hi from public.slots
-      where court_id = $1 and slot_date = $2 and court_type = 'full_court'`, [so, tomorrow])).rows[0]
-    expect(solo1h).toEqual({ n: 17, lo: 2500, hi: 2500 })
+    expect(Number((await db.slotRow(fullFree)).price_lkr)).toBe(12000)
+    expect(Number((await db.slotRow(halfFree)).price_lkr)).toBe(6000)
+    expect(Number((await db.slotRow(booked)).price_lkr)).toBe(5000)
+    const sm = (await db.su.query(`select slot_duration_hrs, operating_start::text, operating_end::text, half_court_cutoff::text, max_consecutive_slots from public.courts where id = $1`, [SM])).rows[0]
+    expect(sm).toEqual({ slot_duration_hrs: 2, operating_start: '07:00:00', operating_end: '23:00:00', half_court_cutoff: '14:00:00', max_consecutive_slots: 1 })
+    const solos = (await db.su.query(`select * from public.courts where name = 'The Solo Court'`)).rows
+    expect(solos).toHaveLength(1)
+    expect(solos[0]).toMatchObject({ location_id: loc, has_half_court: false, slot_duration_hrs: 1, max_consecutive_slots: 2, is_active: true })
+    const day = (await db.su.query(`select count(*)::int n, min(price_lkr)::int lo, max(price_lkr)::int hi, min(start_time)::text first, max(end_time)::text last
+      from public.slots where court_id = $1 and slot_date = $2`, [solos[0].id, colomboDate(1)])).rows[0]
+    expect(day).toEqual({ n: 17, lo: 2500, hi: 2500, first: '05:00:00', last: '22:00:00' })
   })
 
-  it('refuses when the two IDs are the same court', async () => {
-    const sm = (await db.su.query(`insert into public.courts (name, has_half_court) values ('St. Mary''s', true) returning id`)).rows[0].id
-    await expect(db.su.query(setupSql.replace('00000000-0000-0000-0000-000000000001', sm).replace('00000000-0000-0000-0000-000000000002', sm)))
-      .rejects.toThrow(/different court records/)
+  it('refuses if the St. Mary\'s id is not found (nothing changed)', async () => {
+    await expect(db.su.query(setupSql)).rejects.toThrow(/not found/)
     await db.su.query('rollback').catch(() => {})
+    expect((await db.su.query(`select count(*)::int n from public.courts`)).rows[0].n).toBe(0)
+  })
+})
+
+describe('02_cleanup_test_bookings.sql exactly as shipped (real IDs)', () => {
+  it('removes the 7 real test bookings and keeps the CompanyA block', async () => {
+    const court = await db.court()
+    const owner = await db.user({ role: 'super_admin' })
+    const rows: [string, string, string, string, string][] = [
+      ['1d3c3985-b1a6-448c-b581-8ec0aa9971e1', '2026-07-27', '07:00', '09:00', 'half_a'],
+      ['c57b1adc-7c3c-45c3-a6a6-7fbbb2a602d2', '2026-07-27', '15:00', '17:00', 'full_court'],
+      ['117fb805-ebbc-4d19-9129-1cc0afb1fe67', '2026-07-29', '11:00', '13:00', 'full_court'],
+      ['6b73b7b2-628b-4030-8fea-7415a8a10671', '2026-07-29', '07:00', '09:00', 'full_court'],
+      ['443cdda8-ee0f-4da2-a523-e8c8941799c2', '2026-08-13', '09:00', '11:00', 'half_a'],
+      ['5aa658d5-7355-4e4e-815c-d0c21dd10ea4', '2026-09-08', '07:00', '09:00', 'half_a'],
+      ['828bb68a-b4cf-4797-a0b5-f97dbdef1577', '2026-09-08', '11:00', '13:00', 'full_court'],
+    ]
+    const block = await db.slot(court, '2026-08-13', '09:00', '11:00', 'full_court', { status: 'blocked' })
+    for (const [id, d, st, en, t] of rows) {
+      const slot = await db.slot(court, d, st, en, t, { status: 'booked' })
+      await db.su.query(`insert into public.bookings (id, user_id, slot_id, court_id, total_lkr, payhere_payment_id, idempotency_key)
+        values ($1, $2, $3, $4, 3000, $5, $5)`, [id, owner, slot, court, `AG-${id.slice(0, 8)}`])
+    }
+    await db.su.query(cleanupSql)
+    expect((await db.su.query(`select count(*)::int n from public.bookings`)).rows[0].n).toBe(0)
+    expect((await db.su.query(`select count(*)::int n from public.slots where status = 'booked'`)).rows[0].n).toBe(0)
+    expect((await db.slotRow(block)).status).toBe('blocked')
   })
 })

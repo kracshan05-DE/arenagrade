@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import BookingModeControl from '@/components/admin/BookingModeControl'
 
 interface DayStats {
   total: number
@@ -105,6 +106,8 @@ export default function AdminDashboard() {
           {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Colombo' })}
         </p>
       </div>
+
+      <BookingModeControl />
 
       {/* Overall stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '28px' }}>

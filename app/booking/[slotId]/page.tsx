@@ -6,6 +6,8 @@ import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { rpcErrorCode } from '@/lib/apiClient'
 import { userMessage } from '@/lib/userMessages'
+import { useBookingMode } from '@/lib/useBookingMode'
+import BookingModeBanner from '@/components/BookingModeBanner'
 
 interface Slot {
   id: string
@@ -51,6 +53,7 @@ export default function BookingPage() {
   const [court, setCourt] = useState<Court | null>(null)
   const [loading, setLoading] = useState(true)
   const [locking, setLocking] = useState(false)
+  const booking = useBookingMode()
   const [locked, setLocked] = useState(false)
   const [timeLeft, setTimeLeft] = useState(600)
   const [error, setError] = useState('')
@@ -259,6 +262,11 @@ export default function BookingPage() {
   return (
     <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
       <Navbar />
+      {booking.mode && booking.mode !== 'public' && (
+        <div style={{ maxWidth: '520px', margin: '16px auto 0', padding: '0 16px' }}>
+          <BookingModeBanner mode={booking.mode} isAdmin={booking.isAdmin} />
+        </div>
+      )}
 
       {/* Exit warning modal */}
       {showExitWarning && (
@@ -448,6 +456,12 @@ export default function BookingPage() {
                   Verify phone number →
                 </a>
               </div>
+              {booking.testMode && (
+                <a href={`/booking/${slotId}/payment`}
+                  style={{ display: 'block', textAlign: 'center', marginTop: '12px', fontSize: '14px', color: '#92400E', fontWeight: 600 }}>
+                  Admin: skip to test confirmation (no SMS, no payment)
+                </a>
+              )}
             </div>
           </div>
         )}

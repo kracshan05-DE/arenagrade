@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { allowsMultiHour, courtFacts, lkr, time12 } from '@/lib/courtInfo'
+import { useBookingMode } from '@/lib/useBookingMode'
+import BookingModeBanner from '@/components/BookingModeBanner'
 
 interface Court {
   id: string
@@ -54,6 +56,7 @@ export default function CourtPage() {
     new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' }))
   // Multi-hour courts (The Solo Court): chosen duration and selected start slot.
   const [hours, setHours] = useState(1)
+  const booking = useBookingMode()
   const [selectedStart, setSelectedStart] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [slotsLoading, setSlotsLoading] = useState(false)
@@ -200,7 +203,7 @@ export default function CourtPage() {
             LKR {price.toLocaleString()}
           </p>
         )}
-        {status === 'available' && slot && (
+        {status === 'available' && slot && booking.canBook && (
           <button
             onClick={() => handleBook(slot)}
             className="ag-tap"
@@ -306,10 +309,14 @@ export default function CourtPage() {
                   {selection.length} hour{selection.length > 1 ? 's' : ''} · {lkr(total)}
                 </p>
               </div>
-              <button onClick={() => goToBooking(selection.map((x) => x.id))} className="ag-tap"
-                style={{ background: '#4ADE80', color: '#0B2818', border: 'none', borderRadius: '10px', padding: '10px 18px', fontSize: '15px', fontWeight: 800, cursor: 'pointer' }}>
-                Continue
-              </button>
+              {booking.canBook ? (
+                <button onClick={() => goToBooking(selection.map((x) => x.id))} className="ag-tap"
+                  style={{ background: '#4ADE80', color: '#0B2818', border: 'none', borderRadius: '10px', padding: '10px 18px', fontSize: '15px', fontWeight: 800, cursor: 'pointer' }}>
+                  Continue
+                </button>
+              ) : (
+                <span style={{ fontSize: '14px', color: '#BBF7D0' }}>{booking.mode === 'closed' ? 'Booking paused' : 'Online booking opens soon'}</span>
+              )}
             </div>
           )}
         </div>
@@ -435,8 +442,10 @@ export default function CourtPage() {
           ))}
         </div>
 
+        <BookingModeBanner mode={booking.mode} isAdmin={booking.isAdmin} />
+
         {/* Not logged in banner */}
-        {!user && (
+        {!user && booking.mode === 'public' && (
           <div style={{ background: '#EFF6FF', border: '0.5px solid #BFDBFE', borderRadius: '10px', padding: '12px 16px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
             <p style={{ fontSize: '13px', color: '#1D4ED8', margin: 0 }}>Sign in to book a slot</p>
             <a href="/auth" style={{ background: '#1D4ED8', color: '#fff', padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: '600', textDecoration: 'none', whiteSpace: 'nowrap' }}>

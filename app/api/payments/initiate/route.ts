@@ -69,6 +69,9 @@ export async function POST(req: Request) {
     fields.hash = checkoutHash(merchantId!, attempt.order_id, attempt.amount, attempt.currency, merchantSecret!)
     return json({ mode: 'payhere', action: PAYHERE_CHECKOUT_URL[env.payhereMode()], fields, hold_expires_at: attempt.hold_expires_at })
   } catch (e) {
-    return dbErrorResponse(e, cid, { hold_invalid_or_expiring: 409, phone_not_verified: 403, slot_price_invalid: 409 })
+    return dbErrorResponse(e, cid, {
+      hold_invalid_or_expiring: 409, phone_not_verified: 403, slot_price_invalid: 409,
+      booking_admin_only: 403, booking_closed: 403, test_payments_admin_only: 403,
+    })
   }
 }

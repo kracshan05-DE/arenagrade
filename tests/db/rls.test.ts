@@ -17,7 +17,7 @@ beforeAll(async () => {
   slot = await db.slot(court, colomboDate(5), '09:00', '10:00', 'full_court')
   await db.hold(owner, slot)
   const a = (await db.service<{ r: Record<string, string> }>(
-    `select public.payment_create_attempt($1, $2, 'payhere', 'sandbox') as r`, [owner, slot]))[0].r
+    `select public.payment_create_attempt($1, $2, 'payhere', 'live') as r`, [owner, slot]))[0].r
   const n = (await db.service<{ r: Record<string, string> }>(
     `select public.payment_apply_notification('payhere', $1, 'PH1', 2, $2, 'LKR', true, 'k1', '{}') as r`, [a.order_id, a.amount]))[0].r
   bookingId = n.booking_id
@@ -125,8 +125,8 @@ describe('function privileges', () => {
         and has_function_privilege('authenticated', p.oid, 'execute')
       order by 1`)
     expect(r.rows.map((x) => x.proname)).toEqual([
-      'admin_block_slot', 'admin_decide_cancellation', 'admin_generate_court_slots', 'admin_generate_recurring_slots',
-      'admin_unblock_slot', 'admin_update_refund', 'hold_slot', 'hold_slots', 'is_super_admin', 'release_hold',
+      'admin_block_slot', 'admin_confirm_test_booking', 'admin_decide_cancellation', 'admin_generate_court_slots',
+      'admin_generate_recurring_slots', 'admin_set_booking_mode', 'admin_unblock_slot', 'admin_update_refund', 'hold_slot', 'hold_slots', 'is_super_admin', 'release_hold',
       'request_booking_cancellation',
     ])
   })

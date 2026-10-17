@@ -18,8 +18,15 @@ begin;
 
 create temp table cleanup_target (booking_id uuid primary key) on commit drop;
 insert into cleanup_target (booking_id) values
-  -- >>> REPLACE with the 7 booking IDs from the data inventory <<<
-  ('00000000-0000-0000-0000-000000000000');
+  -- The 7 simulate-button test bookings from the 2026-10-18 data inventory
+  -- (all "AG-…" references; owner confirmed they are his own tests).
+  ('1d3c3985-b1a6-448c-b581-8ec0aa9971e1'),  -- 2026-07-27 07:00 half_a
+  ('c57b1adc-7c3c-45c3-a6a6-7fbbb2a602d2'),  -- 2026-07-27 15:00 full
+  ('117fb805-ebbc-4d19-9129-1cc0afb1fe67'),  -- 2026-07-29 11:00 full
+  ('6b73b7b2-628b-4030-8fea-7415a8a10671'),  -- 2026-07-29 07:00 full
+  ('443cdda8-ee0f-4da2-a523-e8c8941799c2'),  -- 2026-08-13 09:00 half_a (overlaps the CompanyA full-court block)
+  ('5aa658d5-7355-4e4e-815c-d0c21dd10ea4'),  -- 2026-09-08 07:00 half_a
+  ('828bb68a-b4cf-4797-a0b5-f97dbdef1577');  -- 2026-09-08 11:00 full
 
 do $$
 declare

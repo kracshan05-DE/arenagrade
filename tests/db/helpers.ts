@@ -11,6 +11,9 @@ export class TestDb {
     const name = await createTestDatabase()
     const su = connect(name)
     await su.connect()
+    // Most tests describe launch-day behaviour (public booking). Tests for the
+    // pre-launch admin-only mode switch it back explicitly.
+    await su.query(`update public.app_settings set value = 'public' where key = 'booking_mode'`)
     return new TestDb(name, su)
   }
 

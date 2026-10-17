@@ -48,7 +48,7 @@ const BASE_ENV: Record<string, string> = {
   ARENAGRADE_ENV: 'test', APP_BASE_URL: SITE, OTP_HASH_SECRET: 'x'.repeat(40), TEXT_LK_API_KEY: 'tl-test',
   RESEND_API_KEY: 're_test', CRON_SECRET: 'cron-secret-for-tests-123', REPORT_RECIPIENTS: 'owner@gmail.com,admin@gmail.com',
   ADMIN_ALERT_PHONE: '0770000001', CRITICAL_ALERT_PHONES: '0770000009', REFUND_WHATSAPP_NUMBER: '0770000001',
-  PAYHERE_MERCHANT_ID: MERCHANT, PAYHERE_MERCHANT_SECRET: SECRET, PAYHERE_MODE: 'sandbox',
+  PAYHERE_MERCHANT_ID: MERCHANT, PAYHERE_MERCHANT_SECRET: SECRET, PAYHERE_MODE: 'live',
 }
 const CLEAR = ['VERCEL_ENV', 'PAYMENT_SIMULATION', 'OTP_TEST_MODE']
 
@@ -200,7 +200,7 @@ describe('payment initiation', () => {
     const body = await r.json()
     expect(r.status).toBe(200)
     expect(body.mode).toBe('payhere')
-    expect(body.action).toBe('https://sandbox.payhere.lk/pay/checkout')
+    expect(body.action).toBe('https://www.payhere.lk/pay/checkout')
     const f = body.fields
     expect(f.amount).toBe('4200.00')
     expect(f.currency).toBe('LKR')
@@ -208,6 +208,35 @@ describe('payment initiation', () => {
     expect(f.return_url.startsWith(`${SITE}/booking/${s}/payment/success`)).toBe(true)
     expect(f.hash).toBe(md5U(MERCHANT + f.order_id + '4200.00' + 'LKR' + md5U(SECRET)))
     expect(JSON.stringify(body)).not.toContain(SECRET)
+  })
+
+  it('admin-only mode: customers get 403 booking_admin_only; an admin gets a PayHere sandbox checkout', async () => {
+    const court = await db.court()
+    const s = await db.slot(court, colomboDate(3), '12:00', '13:00', 'full_court', { price: 6000 })
+    const admin = await db.user({ role: 'super_admin', phoneVerified: true })
+    await db.hold(admin, s)
+    await db.su.query(`update public.app_settings set value = 'admin_only' where key = 'booking_mode'`)
+    const customer = await verifiedCustomer()
+    const denied = await initiate(customer, s)
+    expect(denied.status).toBe(403)
+    expect(denied.body.error).toBe('booking_admin_only')
+    process.env.PAYHERE_MODE = 'sandbox'
+    const r = await initiate(admin, s)
+    expect(r.status).toBe(200)
+    expect(r.body.action).toBe('https://sandbox.payhere.lk/pay/checkout')
+    expect((await db.su.query(`select environment from public.payment_attempts where user_id = $1`, [admin])).rows[0].environment).toBe('sandbox')
+    await db.su.query(`update public.app_settings set value = 'public' where key = 'booking_mode'`)
+  })
+
+  it('a customer can never start a sandbox payment, even when booking is public', async () => {
+    const court = await db.court()
+    const s = await db.slot(court, colomboDate(3), '13:00', '14:00', 'full_court', { price: 6000 })
+    const u = await verifiedCustomer()
+    await db.hold(u, s)
+    process.env.PAYHERE_MODE = 'sandbox'
+    const r = await initiate(u, s)
+    expect(r.status).toBe(403)
+    expect(r.body.error).toBe('test_payments_admin_only')
   })
 
   it('is unavailable (503) when PayHere is not configured and simulation is off', async () => {
@@ -286,14 +315,15 @@ describe('payment simulation is impossible in production', () => {
 
   it('in a test environment it uses the same confirmation path, only for the caller\'s own simulator order', async () => {
     process.env.PAYMENT_SIMULATION = 'enabled'
+    process.env.PAYHERE_MODE = 'sandbox' // simulation is never allowed with PAYHERE_MODE=live
     delete process.env.PAYHERE_MERCHANT_ID
     const court = await db.court()
     const s = await db.slot(court, colomboDate(9), '09:00', '10:00', 'full_court', { price: 2500 })
-    const u = await verifiedCustomer('0773334444')
+    const u = await db.user({ role: 'super_admin', phoneVerified: true, phone: '0773334444' }) // test payments are admin-only
     await db.hold(u, s)
     const init = await initiate(u, s)
     expect(init.body.mode).toBe('simulation')
-    const other = await verifiedCustomer()
+    const other = await db.user({ role: 'super_admin', phoneVerified: true })
     expect((await paySimulate(req('/api/payments/simulate', { orderId: init.body.order_id, outcome: 'success' }, { uid: other }))).status).toBe(404)
     const r = await paySimulate(req('/api/payments/simulate', { orderId: init.body.order_id, outcome: 'success' }, { uid: u }))
     expect((await r.json()).result).toBe('confirmed')

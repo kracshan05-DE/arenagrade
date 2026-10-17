@@ -1,32 +1,49 @@
 -- ArenaGrade: official court configuration and prices (owner-approved
 -- 2026-10-18). Run AFTER the migrations in supabase/migrations.
 --
---   St. Mary's Basketball Court : full court LKR 6,000/hour, half court LKR 3,000/hour,
---                                 existing hours, slot length and half-court cut-off KEPT
+--   St. Mary's Basketball Court : full court LKR 6,000/hour, half court LKR 3,000/hour.
+--                                 Its 2-hour slots are KEPT (owner decision), so a slot
+--                                 costs LKR 12,000 (full) / LKR 6,000 (half). Hours
+--                                 (07:00–23:00) and the 14:00 half-court cut-off unchanged.
 --   The Solo Court              : separate half-sized court, LKR 2,500/hour, 05:00–22:00,
 --                                 1-hour slots (17 per day), book 1 or 2 consecutive hours
 --
--- One transaction; stops on the first failed check. It does NOT create courts
--- (to avoid duplicates) and never changes booked or held slots.
+-- One transaction; stops on the first failed check. Creates The Solo Court only
+-- if it does not exist yet (safe to re-run); never changes booked or held slots.
 
 begin;
 
 do $$
 declare
-  -- >>> REPLACE with the court IDs from the data inventory <<<
-  v_st_marys uuid := '00000000-0000-0000-0000-000000000001';
-  v_solo     uuid := '00000000-0000-0000-0000-000000000002';
+  -- St Mary's Basketball Court Bambalapitiya (from the 2026-10-18 data inventory)
+  v_st_marys uuid := '8c39b8ff-8ae5-4c14-89f7-d74af6b05be7';
+  v_solo     uuid;
   v_days     integer := 60;   -- how far ahead to generate Solo Court slots
   v_today date := (now() at time zone 'Asia/Colombo')::date;
   v_n integer;
   v_r jsonb;
+  v_loc uuid;
+  v_sport uuid;
 begin
-  if v_st_marys = v_solo then raise exception 'St. Mary''s and The Solo Court must be different court records.'; end if;
-  if not exists (select 1 from public.courts where id = v_st_marys) then raise exception 'St. Mary''s court id not found.'; end if;
-  if not exists (select 1 from public.courts where id = v_solo) then raise exception 'Solo Court id not found. Create it once in the admin panel, then rerun.'; end if;
+  select location_id, sport_type_id into v_loc, v_sport from public.courts where id = v_st_marys;
+  if not found then raise exception 'St. Mary''s court id not found.'; end if;
   if not (select coalesce(has_half_court, false) from public.courts where id = v_st_marys) then
     raise exception 'St. Mary''s does not have half courts enabled. Check the id before continuing.';
   end if;
+
+  -- The Solo Court: reuse it if it already exists at this location, otherwise
+  -- create it once (owner: same location and sport as St. Mary's).
+  select id into v_solo from public.courts where location_id = v_loc and name = 'The Solo Court';
+  if v_solo is null then
+    insert into public.courts (location_id, name, sport_type_id, has_half_court, operating_start, operating_end,
+                               slot_duration_hrs, max_consecutive_slots, is_active)
+    values (v_loc, 'The Solo Court', v_sport, false, '05:00', '22:00', 1, 2, true)
+    returning id into v_solo;
+    raise notice 'Created The Solo Court: %', v_solo;
+  else
+    raise notice 'Reusing existing The Solo Court: %', v_solo;
+  end if;
+  if v_st_marys = v_solo then raise exception 'St. Mary''s and The Solo Court must be different court records.'; end if;
 
   -- The Solo Court: own rules, no halves, 1-hour slots, 1–2 consecutive hours.
   update public.courts

@@ -11,13 +11,15 @@ Status labels used throughout:
 
 **Decision: NOT READY for public booking (today).**
 
-All code work is implemented and locally tested: 165 automated tests pass, the production build passes, and a headless-browser audit shows 0 accessibility violations and 0 horizontal overflow. Four attacks that work on your live database today are proven to fail after the migrations.
+All code work is implemented and locally tested: 178 automated tests pass, the production build passes, and a headless-browser audit shows 0 accessibility violations and 0 horizontal overflow. Four attacks that work on your live database today are proven to fail after the migrations.
+
+**Pre-launch mode (your decision, 18 Oct):** until PayHere is approved, the site runs in **admin-only** booking mode. Customers can browse courts and times but cannot reserve or pay. Admins can make bookings, which are recorded as **test bookings** and deleted on launch day by `04_purge_test_bookings.sql`. The mode is enforced in the database, so calling the API directly cannot get round it (section 10a).
 
 None of this is live yet. The live site still runs the old code and old database policies, under which any signed-in customer can make themselves admin, book a court for free, or create a confirmed booking at any price.
 
 It becomes **ready for public launch** once the migrations and scripts are applied (staging first), PayHere sandbox passes, Text.lk, Resend and the daily report are configured and tested, and the checklist in section 17 is complete.
 
-**Recommended now (no code change, needs your approval):** take online booking offline until the fixes are deployed. Options, safest first:
+Migration 0900 makes admin-only the default the moment it is applied, which closes customer booking. **Until it is deployed**, the live site still runs the old code. **Recommended now (no code change, needs your approval):** take online booking offline. Options, safest first:
 1. In Supabase, set every court to inactive (`update public.courts set is_active = false;`). Courts disappear from search, and no slot can be held.
 2. Or protect the Vercel deployment with a password (Deployment Protection), or point the domain to a "coming soon" page.
 
@@ -32,8 +34,9 @@ Option 1 is reversible in one statement and doesn't touch bookings.
   1. `f0d5df0` Production readiness: server-side booking, OTP and payments; RLS; tests
   2. `1fc2ee2` Align migrations with the verified production schema; prove exploits closed
   3. `5da1e49` Two courts, two-hour Solo Court reservations, data scripts, UI/UX pass
-  4. This report.
-- **Push status: blocked.** GitHub is linked and the repository is readable, but pushes return HTTP 403 ("Claude doesn't have GitHub access … install the Claude GitHub App"). Install it at https://github.com/apps/claude/installations/select_target for `arenagrade`, or apply the patch (section 16). Nothing was merged to `main` or deployed.
+  4. `95feddf` This report.
+  5. Admin-only booking mode, admin test bookings, launch-day purge, real IDs in the data scripts.
+- **Push status: pushed** to `origin/security/production-readiness`. Nothing was merged to `main` or deployed.
 
 ---
 
@@ -41,14 +44,14 @@ Option 1 is reversible in one statement and doesn't touch bookings.
 
 | Area | Files |
 |---|---|
-| Database migrations | `supabase/migrations/20261018000100…0800_*.sql` (8 files) |
-| Owner-run data scripts | `supabase/data/01_court_setup.sql`, `02_cleanup_test_bookings.sql`, `03_admin_accounts.sql` |
+| Database migrations | `supabase/migrations/20261018000100…0900_*.sql` (9 files) |
+| Owner-run data scripts | `supabase/data/01_court_setup.sql`, `02_cleanup_test_bookings.sql`, `03_admin_accounts.sql`, `04_purge_test_bookings.sql` |
 | Read-only discovery | `supabase/discovery/01…04_*.sql` |
 | Server routes (new) | `app/api/otp/{send,verify}`, `app/api/payments/{initiate,payhere/notify,simulate}`, `app/api/bookings/[id]/cancel`, `app/api/admin/bookings/[id]/decision`, `app/api/admin/refunds/[id]`, `app/api/cron/daily-report`, `app/api/health` |
 | Server libraries (new) | `lib/server/*` (env, db seam, http, log, otp, payhere, payments, alerts, report period, notify/sms, notify/email, notify/templates) |
-| Shared (new) | `lib/apiClient.ts`, `lib/userMessages.ts`, `lib/phone.ts`, `lib/safeRedirect.ts`, `lib/courtInfo.ts` |
+| Shared (new) | `lib/apiClient.ts`, `lib/userMessages.ts`, `lib/phone.ts`, `lib/safeRedirect.ts`, `lib/courtInfo.ts`, `lib/useBookingMode.ts`, `components/BookingModeBanner.tsx`, `components/admin/BookingModeControl.tsx` |
 | Removed | `app/api/send-sms`, `app/api/send-email`, `lib/sms.ts`, `lib/email.ts`, `lib/rateLimitHelper.ts` |
-| Pages changed | home, court detail, booking, verify, payment, success, my-bookings, auth, auth callback, privacy, admin bookings, admin slots, admin recurring, admin courts, layout, `globals.css` |
+| Pages changed | home, court detail, booking, verify, payment, success, my-bookings, auth, auth callback, privacy, admin dashboard, admin bookings, admin slots, admin recurring, admin courts, layout, `globals.css` |
 | Config | `next.config.ts` (security headers), `vercel.json` (cron), `package.json` (Next 16.3.8, scripts), `scripts/predeploy-check.mjs`, `.env.example`, `.gitignore`, `vitest.config.ts` |
 | Tests | `tests/unit/*`, `tests/db/*`, `tests/api/*`, `supabase/tests/fixtures/*` |
 
@@ -68,8 +71,11 @@ Apply in this order (staging first), each file as one unit, stopping at the firs
 | 6 | `…0600_ops_reporting.sql` | `notification_log`, `job_runs`, daily report data, housekeeping |
 | 7 | `…0700_rls_policies.sql` | **Replaces the policies on ArenaGrade tables**; leaves cities/districts/orders and storage untouched |
 | 8 | `…0800_multi_slot_courts.sql` | Two-court support, two-hour reservations, hourly pricing, idempotent generator, report by court |
+| 9 | `…0900_booking_mode.sql` | `app_settings.booking_mode` (starts as **admin_only**); mode checks inside the hold and payment functions; test payments admin-only; `admin_confirm_test_booking` |
 
-Then, in order: `supabase/data/03_admin_accounts.sql` (Part A, read-only) → `02_cleanup_test_bookings.sql` → `01_court_setup.sql`.
+Then, in order: `02_cleanup_test_bookings.sql` (removes the 7 old test bookings) → `01_court_setup.sql` (creates The Solo Court, sets prices, generates its slots).
+
+On launch day: set mode to **Paused** → `04_purge_test_bookings.sql` → switch PayHere to live → set mode to **Open to everyone** (section 17).
 
 **Rollback limits:**
 - Migrations 1–6 and 8 are additive (new tables, functions, columns). Revert them by dropping the new objects. Old data is untouched, except that expired holds are released and the existing `handle_new_user` gets a pinned `search_path`.
@@ -110,16 +116,22 @@ Storage policies on the `images` bucket were verified correct and left unchanged
 
 ## 6. Test-data cleanup
 
-- **Status: script ready, NOT executed.** I have no database write access.
+- **Status: script ready with your 7 booking IDs, NOT executed.** I have no database write access.
 - **Script:** `supabase/data/02_cleanup_test_bookings.sql`. It runs as one transaction and works on the listed 7 booking IDs only. It refuses to run if the count isn't exactly 7, if any booking isn't confirmed, or if any has a payment attempt or refund record. It backs up the affected rows to `cleanup_20261018_*` tables, resets a slot only when it is booked and has no other live booking, keeps blocked slots, and includes rollback steps.
-- **Locally tested:** a successful run, refusal on a wrong count, refusal when a real payment exists, and a run on the pre-migration schema.
-- **Needed:** the 7 IDs from `04_data_inventory.sql` (sent to you). Then you run it and send the final SELECT output.
+- **Locally tested:** a successful run, refusal on a wrong count, refusal when a real payment exists, a run on the pre-migration schema, and the **shipped file unmodified** against local copies of your 7 bookings (all 7 removed, their slots freed, the "CompanyA" block kept).
+- **Needed:** you run it and send the final SELECT output.
+
+**Overlap analysis.** The inventory shows one real clash: a blocked full-court slot ("CompanyA") and a booked half-court A slot on 13 Aug 2026, 9–11 AM. Full court conflicts with both halves, so both cannot be valid. The booking is one of the 7 test bookings and the date is past, so the cleanup resolves it and the block stays. After migration 0200 the database refuses this combination.
+
+**Later admin test bookings** (made in admin-only mode) are separate and are removed on launch day by `04_purge_test_bookings.sql`: it deletes only bookings whose payment is `test` or `sandbox`, refuses if any of them also has a live payment, keeps backups, and frees their hours. Locally tested.
 
 ---
 
 ## 7. Administrator-account verification
 
 `supabase/data/03_admin_accounts.sql` Part A (read-only) lists each `super_admin` with ID, masked email, created date, last sign-in and last profile change. A recent profile change on an account you don't recognise suggests self-promotion through finding 1.
+
+**Result (inventory, 18 Oct):** 3 `super_admin` accounts. You confirmed all are authorised, so no change is needed. Note: `profiles.updated_at` has no update trigger, so it cannot prove when a role was changed.
 
 Part B is a guarded revocation:
 - It refuses if the two IDs are the same, if your own account isn't admin, or if no admin would remain.
@@ -130,7 +142,7 @@ Part B is a guarded revocation:
 
 ## 8. St. Mary's Basketball Court: pricing and conflict rules
 
-- **Prices (per hour):** full court LKR 6,000; half court A or B LKR 3,000. A slot's price is the hourly price × slot length. If St. Mary's uses 2-hour slots, a full-court slot is LKR 12,000.
+- **Prices (per hour):** full court LKR 6,000; half court A or B LKR 3,000. A slot's price is the hourly price × slot length. **St. Mary's keeps its 2-hour slots (your decision)**, so a slot costs **LKR 12,000** (full) or **LKR 6,000** (half). Hours stay 7:00 AM–11:00 PM. The old tiers (4,000 / 5,000 full, 3,000 half) are replaced.
 - **Conflicts:**
   - Full court conflicts with both halves.
   - A half conflicts with the full court and with the same half.
@@ -138,13 +150,13 @@ Part B is a guarded revocation:
   - Practice blocks and active holds also conflict.
   - Partially overlapping slots and midnight-crossing slots are handled.
 - **Cut-off kept unchanged** (your earlier decision): half courts only when the slot starts before `half_court_cutoff` (default 2:00 PM); full court bookable all day.
-- **Open:** the slot length actually used for St. Mary's will be confirmed from the inventory. The setup script keeps the existing length.
+- `01_court_setup.sql` reprices only future **available or blocked** slots; booked and held slots keep their price.
 
 ---
 
 ## 9. The Solo Court
 
-- **Configuration** (set by `01_court_setup.sql` on the existing record; never creates a duplicate):
+- **Configuration:** the inventory shows The Solo Court does not exist yet. `01_court_setup.sql` creates it once at the same location and sport as St. Mary's (your decision) and reuses it on any re-run:
   - Name "The Solo Court", active, no half courts.
   - Open 5:00 AM–10:00 PM, 1-hour slots, up to 2 consecutive hours.
   - LKR 2,500 per hour.
@@ -181,7 +193,23 @@ Releasing, expiring (including your existing `pg_cron` job, verified compatible)
   - The return page is never trusted.
 - **Late success** is recorded as `succeeded_unconfirmed`, with a pending refund row, an immediate SMS alert to the admin, and an SMS to the customer. A slot taken by another customer is never touched.
 - **Locally tested with mocks:** valid, forged, wrong merchant, tampered amount or currency, duplicate (6 at once), late, partially lost hold, malformed, failure→success, success→failure, chargeback, and a two-hour flow through the API.
-- **Sandbox: NOT run.** It needs your sandbox merchant ID and secret, the preview domain registered with PayHere, and a public preview URL. The checklist is in section 17.
+- **Sandbox: NOT run.** Yes, the sandbox can validate the whole flow. Setup:
+  1. Create a sandbox account at sandbox.payhere.lk (separate from your live account).
+  2. Get the sandbox Merchant ID and Merchant Secret for your domain. *Third-party guide (not PayHere's own docs):* Settings → Domains & Credentials (or Integrations) → Add Domain/App → enter the domain → copy the secret.
+  3. In Vercel, set `PAYHERE_MODE=sandbox`, `PAYHERE_MERCHANT_ID` and `PAYHERE_MERCHANT_SECRET` (sandbox values). Enter them in Vercel only; never in chat or code.
+  4. The notify URL `https://<site>/api/payments/payhere/notify` must be publicly reachable. If Vercel Deployment Protection is on, PayHere's server cannot reach it.
+  5. Pay with PayHere's **official** sandbox test cards (support.payhere.lk → Sandbox & Testing), e.g. Visa 4916 2175 0161 1292, any future expiry and CVV. The same page lists cards that trigger specific declines.
+- **Using sandbox on the production site before launch is safe in admin-only mode:** customers cannot book, and the database refuses sandbox/test payments for anyone who is not an admin, in every mode (locally tested through the API).
+
+### 10a. Pre-launch admin-only mode (implemented, locally tested)
+
+- **Modes** (admin dashboard → "Online booking"): *Admins only (testing)*, *Open to everyone*, *Paused*. The change asks for confirmation and is written to the audit log.
+- **Enforced in the database**, inside `hold_slots` and `payment_create_attempt`, so the browser cannot bypass it. Customers get "Online booking opens soon"; the API returns 403 `booking_admin_only`.
+- **Admins** see a test-mode banner and two ways to finish a booking:
+  - *Confirm as test booking (no payment)*: no SMS and no payment; recorded with provider `manual`, environment `test`.
+  - *Pay with PayHere* in sandbox, to test the real payment flow.
+- **Test bookings never count as revenue** in the daily report. The admin dashboard totals do include them until the purge (noted on the dashboard).
+- Locally tested: 10 database tests and 2 API tests (customer refused, admin sandbox checkout, customer sandbox refused even in public mode, closed mode stops admins, test confirmation for 1 and 2 hours, purge keeps live bookings).
 
 ---
 
@@ -230,6 +258,7 @@ Releasing, expiring (including your existing `pg_cron` job, verified compatible)
   - "Longest booking" setting per court.
   - "Price per hour" stated on the pricing form.
   - Refund actions require a bank reference.
+- Booking-mode banner on court, booking and payment pages; Book/Continue buttons hidden for customers while booking is admin-only or paused.
 - Design tokens; skip link; visible keyboard focus; 44px tap targets; reduced-motion support; no sideways scrolling; labelled date picker; screen-reader labels on slot buttons; live region for the selection summary.
 
 **Browser-verified** (headless Chromium, built app, test data for both courts):
@@ -240,10 +269,12 @@ Releasing, expiring (including your existing `pg_cron` job, verified compatible)
 | St. Mary's | 1280 / 390 | 0 / 0 | 0 / 0 (6 fixed) |
 | The Solo Court, 2-hour selected | 390 | 0 | 0 |
 | The Solo Court, 1-hour | 1280 | 0 | 0 |
+| St. Mary's, admin-only mode (customer view) | 390 / 1280 | 0 / 0 | 0 / 0; banner shown, 0 Book buttons |
+| The Solo Court, admin-only mode, 2 hours selected | 390 | 0 | 0; "Online booking opens soon" instead of Continue |
 
 Visual review of the screenshots led to two further fixes: the summary bar no longer covers start times, and St. Mary's options fit one row on phones, making that page about 23% shorter.
 
-**Not browser-tested:** pages that need a signed-in session (booking, OTP, payment, success, My Bookings, admin) were type-checked and built, but not rendered. Automated checks don't replace a manual screen-reader pass.
+**Not browser-tested:** pages that need a signed-in session (booking, OTP, payment incl. the admin test button, success, My Bookings, admin incl. the mode switch) were type-checked and built, but not rendered. Automated checks don't replace a manual screen-reader pass.
 
 ---
 
@@ -252,12 +283,12 @@ Visual review of the screenshots led to two further fixes: the summary bar no lo
 | Command | Result |
 |---|---|
 | `npm run typecheck` | Pass |
-| `npm run test` | **165 passed, 0 failed, 0 skipped** (9 files) |
+| `npm run test` | **178 passed, 0 failed, 0 skipped** (10 files) |
 | Mutation run: `PGTEST_MUTATION=naive_hold npm run test:db -- tests/db/booking-integrity.test.ts` | 13 failed, as expected; proves the tests detect double booking |
 | `npm run build` (build guard + Next.js 16.3.8) | Pass |
 | `npm audit --omit=dev` | 0 vulnerabilities |
-| `npx eslint .` | 41 errors, 22 warnings, all in pre-existing UI code (baseline 44) |
-| Browser audit (Chromium 153, axe-core) | 6 views: 0 violations, 0 overflow |
+| `npx eslint .` | 41 errors, 22 warnings, all in pre-existing UI code (baseline 44); new files clean |
+| Browser audit (Chromium 153, axe-core) | 9 views: 0 violations, 0 overflow |
 | Client bundle scan | No secrets or server-only functions |
 
 Coverage includes:
@@ -266,19 +297,17 @@ Coverage includes:
 - Payments: valid, invalid, amount/currency, duplicates, late, reallocated slot.
 - Pricing: 6,000, 3,000, 2,500, 5,000; the 17-slot day.
 - Cancellation, the daily report, and the data scripts.
+- Booking mode: admin-only, public and closed; test-payment restriction; admin test bookings; launch-day purge.
 
 ---
 
 ## 14. Outstanding issues and external dependencies
 
 - Migrations and scripts not applied to staging or production.
-- Inventory results pending: court IDs, St. Mary's slot length, the 7 booking IDs, admin accounts, and the overlap records.
-- **Reported overlap** (`28e73225…` blocked vs `40c2fb9f…` booked): pending the inventory. A block on the full court at the same time as a booked half is a real clash. Decide which applies before changing anything, and the cleanup may resolve it if the booking is one of your tests.
 - PayHere merchant approval and sandbox credentials.
 - Text.lk "ArenaGrade" sender ID approval and account balance.
 - Resend account and domain verification.
 - pg_net, if you want the exact 10 PM report.
-- Claude GitHub App installation, if you want me to push.
 - An external uptime monitor and Vercel deploy-failure notifications.
 - Signed-in page rendering and a manual accessibility pass.
 
@@ -286,17 +315,14 @@ Coverage includes:
 
 ## 15. Manual actions required from you
 
-1. Approve and apply the temporary booking shutdown (section 1).
-2. Run `supabase/discovery/04_data_inventory.sql` and send the JSON.
-3. Check the `super_admin` accounts (section 7).
-4. Confirm St. Mary's slot length (1 or 2 hours) if the inventory is ambiguous.
-5. Install the Claude GitHub App, or apply the patch yourself.
-6. Create a staging Supabase project (or branch) and confirm backups/PITR on production.
-7. Set Vercel environment variables (`.env.example`), keeping Preview (sandbox) and Production separate.
-8. Get PayHere sandbox credentials and register the preview and live domains.
-9. Text.lk: approve the sender ID and top up the balance. Resend: create the account and verify the domain.
-10. Choose the report test inbox, then the real recipients.
-11. Optional: enable pg_net and add the Vault secret for the exact 10 PM report.
+1. Approve and apply the temporary booking shutdown (section 1) until migration 0900 is live.
+2. Review the branch on GitHub (`security/production-readiness`).
+3. Create a staging Supabase project (or branch) and confirm backups/PITR on production.
+4. Set Vercel environment variables (`.env.example`), keeping Preview (sandbox) and Production separate.
+5. Get PayHere sandbox credentials and register the domain (section 10).
+6. Text.lk: approve the sender ID and top up the balance. Resend: create the account and verify the domain.
+7. Choose the report test inbox, then the real recipients.
+8. Optional: enable pg_net and add the Vault secret for the exact 10 PM report.
 
 ---
 
@@ -323,13 +349,14 @@ Coverage includes:
 
 **By 20 Oct — P0**
 - [ ] Booking temporarily disabled on the live site
-- [ ] Inventory sent; admin accounts verified
-- [ ] Branch pushed; staging project created; backups confirmed
+- [x] Inventory sent; admin accounts verified (3, all authorised)
+- [x] Branch pushed
+- [ ] Staging project created; backups confirmed
 
 **By 24 Oct — P0 on staging**
-- [ ] Migrations 1–8 applied to staging without errors
+- [ ] Migrations 1–9 applied to staging without errors; booking mode reads `admin_only`
 - [ ] Attack checks fail on staging: role change, slot update, booking insert, phone self-verify
-- [ ] Cleanup + court setup scripts run on staging; 17 Solo slots per day; prices 6,000 / 3,000 / 2,500
+- [ ] Cleanup + court setup scripts run on staging; 17 Solo slots per day; St. Mary's slots 12,000 / 6,000; Solo 2,500 / 5,000
 - [ ] Preview deployment on staging with `PAYMENT_SIMULATION=enabled`: full flows for St. Mary's (full + half) and The Solo Court (1h + 2h)
 
 **By 28 Oct — P1**
@@ -340,13 +367,17 @@ Coverage includes:
 
 **29–30 Oct — Production**
 - [ ] Manual backup taken
-- [ ] Migrations applied → data scripts run → verification SELECTs reviewed
-- [ ] Production env vars set (`PAYHERE_MODE=live`, no simulation or test mode); build log shows `[predeploy-check] OK (production)`
+- [ ] Migrations applied (site starts in admin-only mode) → `02` cleanup → `01` court setup → verification SELECTs reviewed
+- [ ] Production env vars set; `PAYHERE_MODE=sandbox` is acceptable while admin-only; no simulation or OTP test mode; build log shows `[predeploy-check] OK (production)`
 - [ ] Merge and deploy; `/api/send-sms` and `/api/send-email` return 404; `/api/health` OK
-- [ ] One real low-value booking end to end, then refunded
+- [ ] Admin test bookings on both courts (test confirmation and PayHere sandbox)
 
-**31 Oct**
-- [ ] Courts re-activated; uptime monitor on; real report recipients set
+**1 Nov — launch (after PayHere live approval)**
+- [ ] Admin dashboard: set booking to **Paused**
+- [ ] Run `04_purge_test_bookings.sql`; check `test_bookings_remaining = 0`
+- [ ] Vercel: live PayHere credentials, `PAYHERE_MODE=live`; redeploy
+- [ ] One real low-value booking by an admin, then refunded (needs your approval)
+- [ ] Set booking to **Open to everyone**; uptime monitor on; real report recipients set
 
 **After launch (2 weeks)**
 - [ ] Read every daily report: integrity counts 0, no unresolved paid-but-unconfirmed payments
