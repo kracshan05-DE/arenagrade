@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'ArenaGrade — Book Your Court Online',
-  description: 'ArenaGrade designs and constructs world-class sports courts across Sri Lanka. Book basketball, squash, netball courts online.',
+  description: "Book St. Mary's Basketball Court (full or half court) or The Solo Court online in Sri Lanka. Real-time availability and secure PayHere payment.",
   keywords: 'court booking, basketball court, Sri Lanka, ArenaGrade, sports court',
   openGraph: {
     title: 'ArenaGrade — Book Your Court Online',
@@ -53,9 +53,10 @@ export default function RootLayout({
         </Script>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <a href="#main-content" className="ag-skip-link">Skip to content</a>
         <ErrorBoundary>
           <NetworkStatus />
-          {children}
+          <div id="main-content" tabIndex={-1}>{children}</div>
         </ErrorBoundary>
       </body>
     </html>

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { rpcErrorCode } from '@/lib/apiClient'
+import { userMessage } from '@/lib/userMessages'
 
 interface Court {
   id: string; name: string; has_half_court: boolean
@@ -82,51 +84,18 @@ export default function AdminSlots() {
 
   const court = courts.find(c => c.id === selectedCourt)
 
-  // Build slots array for a given date and court
-  const buildSlotsForDate = (dateStr: string, courtObj: Court, pricing: any[]) => {
-    const getPrice = (hour: number, type: string) => {
-      const time = `${hour.toString().padStart(2, '0')}:00:00`
-      const match = pricing.find(p =>
-        p.applies_to === type && p.time_from <= time && p.time_to > time
-      )
-      return match ? match.price_lkr : 0
+  // Slot generation runs on the server (admin_generate_court_slots): it uses
+  // the court's own hours, slot length, half-court cut-off and hourly prices,
+  // and never duplicates or touches existing slots, so it is safe to re-run.
+  const generateRange = async (from: string, to: string) => {
+    const { data, error } = await supabase.rpc('admin_generate_court_slots', { p_court_id: selectedCourt, p_from: from, p_to: to })
+    if (error) {
+      const code = rpcErrorCode(error)
+      return { ok: false as const, message: code === 'pricing_missing'
+        ? 'This court has no hourly price for one of its slot types. Add prices on the Courts page first.'
+        : userMessage(code) }
     }
-
-    const startHour = parseInt(courtObj.operating_start.split(':')[0])
-    const endHour = parseInt(courtObj.operating_end.split(':')[0])
-    const duration = courtObj.slot_duration_hrs
-    const cutoffHour = parseInt((courtObj.half_court_cutoff || '14:00').split(':')[0])
-    const slots = []
-
-    for (let hour = startHour; hour < endHour; hour += duration) {
-      const startTime = `${hour.toString().padStart(2, '0')}:00:00`
-      const endTime = `${(hour + duration).toString().padStart(2, '0')}:00:00`
-      const isBeforeCutoff = hour < cutoffHour
-
-      slots.push({
-        court_id: courtObj.id, slot_date: dateStr,
-        start_time: startTime, end_time: endTime,
-        court_type: 'full_court', status: 'available',
-        price_lkr: getPrice(hour, 'full_court'), version: 0
-      })
-
-      if (courtObj.has_half_court && isBeforeCutoff) {
-        slots.push({
-          court_id: courtObj.id, slot_date: dateStr,
-          start_time: startTime, end_time: endTime,
-          court_type: 'half_a', status: 'available',
-          price_lkr: getPrice(hour, 'half_a'), version: 0
-        })
-        slots.push({
-          court_id: courtObj.id, slot_date: dateStr,
-          start_time: startTime, end_time: endTime,
-          court_type: 'half_b', status: 'available',
-          price_lkr: getPrice(hour, 'half_b'), version: 0
-        })
-      }
-    }
-
-    return slots
+    return { ok: true as const, created: (data as { created: number }).created, existed: (data as { already_existed: number }).already_existed }
   }
 
   // Single date generation
@@ -134,107 +103,35 @@ export default function AdminSlots() {
     if (!court || !selectedDate) return
     setGenerating(true)
     setMessage('')
-
-    const { data: pricing } = await supabase
-      .from('court_pricing').select('*').eq('court_id', selectedCourt)
-
-    // Check if slots already exist for this date
-    const { data: existing } = await supabase
-      .from('slots').select('id')
-      .eq('court_id', selectedCourt)
-      .eq('slot_date', selectedDate)
-      .limit(1)
-
-    if (existing && existing.length > 0) {
-      setMessage('Slots already exist for this date. Delete them first if you want to regenerate.')
-      setGenerating(false)
-      return
-    }
-
-    const slotsToInsert = buildSlotsForDate(selectedDate, court, pricing || [])
-    const { error } = await supabase.from('slots').insert(slotsToInsert)
-
-    if (error) {
-      setMessage('Error generating slots: ' + error.message)
-    } else {
-      setMessage(`✅ Generated ${slotsToInsert.length} slots for ${selectedDate}`)
-    }
-
+    const r = await generateRange(selectedDate, selectedDate)
+    setMessage(r.ok
+      ? (r.created ? `Created ${r.created} slots for ${selectedDate}.` : `All slots for ${selectedDate} already exist (${r.existed}).`)
+      : r.message)
     await loadSlots()
     setGenerating(false)
   }
 
-  // Bulk generation for all courts or selected court
+  // Bulk generation for the selected court, in weekly chunks (progress bar)
   const generateBulkSlots = async () => {
     if (!court) return
     setBulkGenerating(true)
     setMessage('')
-
-    const { data: pricing } = await supabase
-      .from('court_pricing').select('*').eq('court_id', selectedCourt)
-
-    // Build list of dates to generate
-    const dates: string[] = []
-    const startDate = new Date()
-    for (let i = 0; i < bulkDays; i++) {
-      const d = new Date(startDate)
-      d.setDate(d.getDate() + i)
-      dates.push(d.toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' }))
+    const start = new Date(`${today}T00:00:00Z`)
+    const dayStr = (offset: number) => {
+      const d = new Date(start); d.setUTCDate(d.getUTCDate() + offset)
+      return d.toISOString().slice(0, 10)
     }
-
-    // Check which dates already have slots
-    const { data: existingSlots } = await supabase
-      .from('slots')
-      .select('slot_date')
-      .eq('court_id', selectedCourt)
-      .in('slot_date', dates)
-
-    const datesWithSlots = new Set(existingSlots?.map(s => s.slot_date) || [])
-    const datesToGenerate = dates.filter(d => !datesWithSlots.has(d))
-    const skippedCount = dates.length - datesToGenerate.length
-
-    setBulkProgress({ current: 0, total: datesToGenerate.length, skipped: skippedCount, generated: 0 })
-
-    if (datesToGenerate.length === 0) {
-      setMessage(`All ${bulkDays} days already have slots. Nothing to generate.`)
-      setBulkGenerating(false)
-      setShowBulkModal(false)
-      return
+    let created = 0, existed = 0, failed = ''
+    const CHUNK = 7
+    setBulkProgress({ current: 0, total: bulkDays, skipped: 0, generated: 0 })
+    for (let i = 0; i < bulkDays; i += CHUNK) {
+      const r = await generateRange(dayStr(i), dayStr(Math.min(i + CHUNK, bulkDays) - 1))
+      if (!r.ok) { failed = r.message; break }
+      created += r.created; existed += r.existed
+      setBulkProgress({ current: Math.min(i + CHUNK, bulkDays), total: bulkDays, skipped: existed, generated: created })
     }
-
-    let generatedCount = 0
-    let errorCount = 0
-
-    // Generate in batches of 7 days to avoid timeout
-    const BATCH_SIZE = 7
-    for (let i = 0; i < datesToGenerate.length; i += BATCH_SIZE) {
-      const batch = datesToGenerate.slice(i, i + BATCH_SIZE)
-      const allSlots = batch.flatMap(date => buildSlotsForDate(date, court, pricing || []))
-
-      const { error } = await supabase.from('slots').insert(allSlots)
-      if (error) {
-        errorCount += batch.length
-      } else {
-        generatedCount += batch.length
-      }
-
-      setBulkProgress({
-        current: Math.min(i + BATCH_SIZE, datesToGenerate.length),
-        total: datesToGenerate.length,
-        skipped: skippedCount,
-        generated: generatedCount,
-      })
-    }
-
-    const slotsPerDay = buildSlotsForDate(datesToGenerate[0], court, pricing || []).length
-    const totalSlots = generatedCount * slotsPerDay
-
-    if (errorCount > 0) {
-      setMessage(`Generated slots for ${generatedCount} days (${totalSlots} slots). ${errorCount} days failed. Skipped ${skippedCount} days (already had slots).`)
-    } else {
-      setMessage(`✅ Generated ${totalSlots} slots across ${generatedCount} days. Skipped ${skippedCount} days that already had slots.`)
-    }
-
+    setMessage(failed ? `Stopped: ${failed} (${created} slots created before the error.)`
+      : `Created ${created} new slots over ${bulkDays} days. ${existed} already existed and were left unchanged.`)
     setBulkGenerating(false)
     setShowBulkModal(false)
     await loadSlots()
@@ -243,14 +140,17 @@ export default function AdminSlots() {
   const blockSlot = async (slotId: string) => {
     const reason = blockType === 'iimpact' ? 'IIMPACT Practice' : blockReason
     if (!reason.trim()) { setMessage('Please enter a reason.'); return }
-    await supabase.from('slots').update({ status: 'blocked', internal_reason: reason }).eq('id', slotId)
+    // The database refuses a block that would clash with a booking or active hold.
+    const { error } = await supabase.rpc('admin_block_slot', { p_slot_id: slotId, p_reason: reason })
+    if (error) setMessage(userMessage(rpcErrorCode(error)))
     setBlockingSlotId('')
     setBlockReason('')
     await loadSlots()
   }
 
   const unblockSlot = async (slotId: string) => {
-    await supabase.from('slots').update({ status: 'available', internal_reason: null }).eq('id', slotId)
+    const { error } = await supabase.rpc('admin_unblock_slot', { p_slot_id: slotId })
+    if (error) setMessage(userMessage(rpcErrorCode(error)))
     await loadSlots()
   }
 
@@ -420,7 +320,7 @@ export default function AdminSlots() {
                   <div style={{ height: '100%', background: '#1B6B3A', borderRadius: '4px', width: `${bulkProgress.total > 0 ? (bulkProgress.current / bulkProgress.total) * 100 : 0}%`, transition: 'width 0.3s ease' }} />
                 </div>
                 {bulkProgress.skipped > 0 && (
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '4px 0 0' }}>Skipping {bulkProgress.skipped} days that already have slots</p>
+                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '4px 0 0' }}>{bulkProgress.skipped} existing slots left unchanged</p>
                 )}
               </div>
             )}

@@ -29,7 +29,7 @@ export default function PrivacyPage() {
             },
             {
               title: '3. SMS Communications',
-              content: 'By providing your mobile number and completing phone verification, you consent to receiving SMS messages from ArenaGrade related to your bookings. These include OTP codes for verification and booking confirmations. We use Notify.lk, a Sri Lankan SMS gateway, to deliver these messages. Standard messaging rates may apply.'
+              content: 'By providing your mobile number and completing phone verification, you consent to receiving SMS messages from ArenaGrade related to your bookings. These include OTP codes for verification and booking confirmations. We use Text.lk, a Sri Lankan SMS gateway, to deliver these messages. Standard messaging rates may apply.'
             },
             {
               title: '4. Payment Information',
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
             },
             {
               title: '6. Data Sharing',
-              content: 'We do not sell, rent, or share your personal information with third parties for marketing purposes. Your data may be shared with: Notify.lk (for SMS delivery), PayHere (for payment processing), and Resend (for email notifications). All third parties are bound by confidentiality obligations.'
+              content: 'We do not sell, rent, or share your personal information with third parties for marketing purposes. Your data may be shared with: Text.lk (for SMS delivery), PayHere (for payment processing), and Resend (for email notifications). All third parties are bound by confidentiality obligations.'
             },
             {
               title: '7. Your Rights',

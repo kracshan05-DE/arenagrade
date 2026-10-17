@@ -1,9 +1,13 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
+import { rpcErrorCode } from '@/lib/apiClient'
+import { userMessage } from '@/lib/userMessages'
+import { useBookingMode } from '@/lib/useBookingMode'
+import BookingModeBanner from '@/components/BookingModeBanner'
 
 interface Slot {
   id: string
@@ -35,11 +39,21 @@ export default function BookingPage() {
   const params = useParams()
   const router = useRouter()
   const slotId = params.slotId as string
+  const searchParams = useSearchParams()
+  // A multi-hour reservation (The Solo Court) arrives as ?slots=id1,id2.
+  const requestedIds = (() => {
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const list = (searchParams.get('slots') || '').split(',').filter((x) => UUID.test(x))
+    return list.length > 1 && list.length <= 4 && list.includes(slotId) ? list : [slotId]
+  })()
+  const requestedKey = requestedIds.join(',')
 
   const [slot, setSlot] = useState<Slot | null>(null)
+  const [group, setGroup] = useState<Slot[]>([])
   const [court, setCourt] = useState<Court | null>(null)
   const [loading, setLoading] = useState(true)
   const [locking, setLocking] = useState(false)
+  const booking = useBookingMode()
   const [locked, setLocked] = useState(false)
   const [timeLeft, setTimeLeft] = useState(600)
   const [error, setError] = useState('')
@@ -53,56 +67,59 @@ export default function BookingPage() {
     const init = async () => {
       const currentUser = await getCurrentUser()
       if (!currentUser) {
-        router.push(`/auth?redirect=/booking/${slotId}`)
+        router.push(`/auth?redirect=${encodeURIComponent(`/booking/${slotId}${requestedIds.length > 1 ? `?slots=${requestedKey}` : ''}`)}`)
         return
       }
       setUser(currentUser)
       userRef.current = currentUser
 
-      const { data: slotData, error: slotError } = await supabase
-        .from('slots').select('*').eq('id', slotId).single()
+      const ids = requestedKey.split(',')
+      const { data: rows, error: slotError } = await supabase.from('slots').select('*').in('id', ids)
+      const slotData = rows?.find((r) => r.id === slotId)
 
-      if (slotError || !slotData) {
+      if (slotError || !rows || rows.length !== ids.length || !slotData) {
         setError('This slot could not be found. It may have been removed.')
         setLoading(false)
         return
       }
 
-      if (slotData.status === 'booked' || slotData.status === 'blocked') {
-        setError('This slot is no longer available. Please go back and choose another slot.')
+      const isActiveLock = (r: Slot & { locked_by?: string | null }) =>
+        r.status === 'locked' && !!r.lock_expires_at && new Date(r.lock_expires_at).getTime() > Date.now()
+
+      // Our own hold (e.g. page refresh): resume it — including every hour of a
+      // multi-hour hold, which share one expiry — from the server's timer.
+      if (isActiveLock(slotData) && slotData.locked_by === currentUser.id) {
+        const { data: held } = await supabase.from('slots').select('*')
+          .eq('court_id', slotData.court_id).eq('locked_by', currentUser.id)
+          .eq('status', 'locked').eq('lock_expires_at', slotData.lock_expires_at)
+          .order('slot_date').order('start_time')
+        const mine = (held && held.length ? held : [slotData]) as Slot[]
+        setSlot(mine[0]); slotRef.current = mine[0]; setGroup(mine)
+        const { data: courtData } = await supabase
+          .from('courts').select('*, locations(name, address), sport_types(name)').eq('id', slotData.court_id).single()
+        if (courtData) setCourt(courtData)
+        setLocked(true)
+        setTimeLeft(Math.floor((new Date(slotData.lock_expires_at).getTime() - Date.now()) / 1000))
         setLoading(false)
         return
       }
 
-      if (slotData.status === 'locked' && slotData.locked_by === currentUser.id) {
-        const expiresAt = new Date(slotData.lock_expires_at || '').getTime()
-        const remaining = Math.floor((expiresAt - Date.now()) / 1000)
-        if (remaining > 0) {
-          setSlot(slotData)
-          slotRef.current = slotData
-          const { data: courtData } = await supabase
-            .from('courts').select('*, locations(name, address), sport_types(name)').eq('id', slotData.court_id).single()
-          if (courtData) setCourt(courtData)
-          setLocked(true)
-          setTimeLeft(remaining)
-          setLoading(false)
-          return
-        } else {
-          await supabase.from('slots').update({
-            status: 'available', locked_by: null, lock_expires_at: null
-          }).eq('id', slotData.id)
-          slotData.status = 'available'
-        }
+      if (rows.some((r) => r.status === 'booked' || r.status === 'blocked')) {
+        setError(ids.length > 1
+          ? 'One of the hours you picked is no longer available. Please go back and choose another time.'
+          : 'This slot is no longer available. Please go back and choose another slot.')
+        setLoading(false)
+        return
       }
-
-      if (slotData.status === 'locked' && slotData.locked_by !== currentUser.id) {
-        setError('This slot is currently being reserved by another customer. Please go back and try another slot.')
+      if (rows.some((r) => isActiveLock(r))) {
+        setError('This time is currently being reserved by another customer. Please go back and try another slot.')
         setLoading(false)
         return
       }
 
-      setSlot(slotData)
-      slotRef.current = slotData
+      const sorted = [...rows].sort((a, b) => (a.slot_date + a.start_time).localeCompare(b.slot_date + b.start_time))
+        .map((r) => ({ ...r, status: r.status === 'locked' ? 'available' : r.status })) as Slot[]
+      setSlot(sorted[0]); slotRef.current = sorted[0]; setGroup(sorted)
 
       const { data: courtData } = await supabase
         .from('courts').select('*, locations(name, address), sport_types(name)').eq('id', slotData.court_id).single()
@@ -110,7 +127,7 @@ export default function BookingPage() {
       setLoading(false)
     }
     init()
-  }, [slotId, router])
+  }, [slotId, requestedKey, router])
 
   // Countdown timer
   useEffect(() => {
@@ -142,9 +159,7 @@ export default function BookingPage() {
   }, [locked])
   const handleExpiry = async () => {
     if (slotRef.current) {
-      await supabase.from('slots').update({
-        status: 'available', locked_by: null, lock_expires_at: null
-      }).eq('id', slotRef.current.id)
+      await supabase.rpc('release_hold', { p_slot_id: slotRef.current.id })
     }
     setLocked(false)
     setError('Your reservation expired. Please go back and select the slot again.')
@@ -152,9 +167,7 @@ export default function BookingPage() {
 
   const releaseAndExit = async () => {
     if (slotRef.current) {
-      await supabase.from('slots').update({
-        status: 'available', locked_by: null, lock_expires_at: null
-      }).eq('id', slotRef.current.id)
+      await supabase.rpc('release_hold', { p_slot_id: slotRef.current.id })
     }
     setLocked(false)
     setShowExitWarning(false)
@@ -186,41 +199,24 @@ export default function BookingPage() {
     setLocking(true)
     setError('')
 
-    const { data: freshSlot } = await supabase
-      .from('slots').select('status, version').eq('id', slot.id).single()
+    // The database decides: availability, half/full conflicts, practice blocks,
+    // cut-off time, price and the 10-minute expiry (server clock).
+    const { data, error: holdError } = await supabase.rpc('hold_slots', { p_slot_ids: group.map((g) => g.id) })
 
-    if (!freshSlot || freshSlot.status !== 'available') {
-      setError('This slot was just taken by another customer. Please go back and choose another slot.')
+    if (holdError || !data) {
+      setError(userMessage(rpcErrorCode(holdError), 'Could not reserve this slot. Please go back and try again.'))
       setLocking(false)
       lockAttempted.current = false
       return
     }
 
-    const lockExpiry = new Date(Date.now() + 600000).toISOString()
-
-    const { data, error: lockError } = await supabase
-      .from('slots')
-      .update({
-        status: 'locked', locked_by: user.id,
-        lock_expires_at: lockExpiry,
-        version: (freshSlot.version || 0) + 1,
-      })
-      .eq('id', slot.id)
-      .eq('status', 'available')
-      .select()
-
-    if (lockError || !data || data.length === 0) {
-      setError('Could not reserve this slot. Someone may have just booked it. Please go back and try again.')
-      setLocking(false)
-      lockAttempted.current = false
-      return
-    }
-
+    const lockExpiry = data.lock_expires_at as string
     const updatedSlot = { ...slot, status: 'locked', lock_expires_at: lockExpiry }
     setSlot(updatedSlot)
     slotRef.current = updatedSlot
+    setGroup((g) => g.map((x) => ({ ...x, status: 'locked', lock_expires_at: lockExpiry })))
     setLocked(true)
-    setTimeLeft(600)
+    setTimeLeft(Number(data.seconds_left ?? 600))
     setLocking(false)
   }
 
@@ -266,6 +262,11 @@ export default function BookingPage() {
   return (
     <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
       <Navbar />
+      {booking.mode && booking.mode !== 'public' && (
+        <div style={{ maxWidth: '520px', margin: '16px auto 0', padding: '0 16px' }}>
+          <BookingModeBanner mode={booking.mode} isAdmin={booking.isAdmin} />
+        </div>
+      )}
 
       {/* Exit warning modal */}
       {showExitWarning && (
@@ -354,7 +355,7 @@ export default function BookingPage() {
                 </div>
                 <div>
                   <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Time</p>
-                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{slot.start_time.slice(0,5)} - {slot.end_time.slice(0,5)}</p>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{slot.start_time.slice(0,5)} - {(group[group.length - 1] ?? slot).end_time.slice(0,5)}{group.length > 1 ? ` (${group.length} hours)` : ''}</p>
                 </div>
                 <div>
                   <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Court type</p>
@@ -369,7 +370,7 @@ export default function BookingPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '14px', borderTop: '0.5px solid #F1F5F9' }}>
               <div>
                 <p style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 2px' }}>Total amount</p>
-                <p style={{ fontSize: '24px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>LKR {slot.price_lkr.toLocaleString()}</p>
+                <p style={{ fontSize: '24px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>LKR {(group.length ? group.reduce((sum, g) => sum + Number(g.price_lkr), 0) : slot.price_lkr).toLocaleString()}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 2px' }}>Payment via</p>
@@ -455,6 +456,12 @@ export default function BookingPage() {
                   Verify phone number →
                 </a>
               </div>
+              {booking.testMode && (
+                <a href={`/booking/${slotId}/payment`}
+                  style={{ display: 'block', textAlign: 'center', marginTop: '12px', fontSize: '14px', color: '#92400E', fontWeight: 600 }}>
+                  Admin: skip to test confirmation (no SMS, no payment)
+                </a>
+              )}
             </div>
           </div>
         )}

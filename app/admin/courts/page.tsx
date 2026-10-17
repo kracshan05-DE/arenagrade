@@ -19,6 +19,7 @@ interface Court {
   operating_start: string
   operating_end: string
   slot_duration_hrs: number
+  max_consecutive_slots?: number | null
   is_active: boolean
   locations: { name: string }
   sport_types: { name: string }
@@ -104,6 +105,7 @@ export default function AdminCourts() {
         operating_start: formatTime(editingCourt.operating_start?.slice(0,5) || '06:00'),
         operating_end: formatTime(editingCourt.operating_end?.slice(0,5) || '22:00'),
         slot_duration_hrs: parseInt(String(editingCourt.slot_duration_hrs)),
+        max_consecutive_slots: Math.min(4, Math.max(1, parseInt(String(editingCourt.max_consecutive_slots ?? 1)) || 1)),
         is_active: editingCourt.is_active,
       })
       .eq('id', editingCourt.id)
@@ -329,6 +331,15 @@ export default function AdminCourts() {
                           style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
                       </div>
                     )}
+                    <div>
+                      <label htmlFor={`maxc_${court.id}`} style={{ display: 'block', fontSize: '12px', color: '#475569', marginBottom: '4px' }}>LONGEST BOOKING (CONSECUTIVE SLOTS)</label>
+                      <select id={`maxc_${court.id}`} value={editingCourt.max_consecutive_slots ?? 1}
+                        onChange={e => setEditingCourt({...editingCourt, max_consecutive_slots: parseInt(e.target.value)})}
+                        style={{ width: '100%', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box', background: '#fff' }}>
+                        <option value={1}>1 slot only</option>
+                        <option value={2}>1 or 2 consecutive slots (The Solo Court)</option>
+                      </select>
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <input type="checkbox" checked={editingCourt.is_active}
                         onChange={e => setEditingCourt({...editingCourt, is_active: e.target.checked})}
@@ -340,7 +351,8 @@ export default function AdminCourts() {
                   {/* Pricing editor */}
                   {editingPricing.length > 0 && (
                     <div style={{ marginBottom: '16px' }}>
-                      <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: '0 0 10px' }}>Pricing</p>
+                      <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: '0 0 4px' }}>Pricing (LKR per hour)</p>
+                      <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 10px' }}>Slot price = hourly price × slot length. Changes apply to newly generated slots; existing bookings keep the price paid.</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {editingPricing.map((p, i) => (
                           <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', alignItems: 'center', background: '#F8FAFC', borderRadius: '8px', padding: '10px' }}>

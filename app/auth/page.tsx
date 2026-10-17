@@ -3,11 +3,12 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { safeRedirectPath } from '@/lib/safeRedirect'
 
 function AuthContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const redirect = searchParams.get('redirect') || '/'
+  const redirect = safeRedirectPath(searchParams.get('redirect'))
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

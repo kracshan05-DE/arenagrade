@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
-import { sendOtpSMS } from '@/lib/sms'
+import { apiPost } from '@/lib/apiClient'
+import { userMessage } from '@/lib/userMessages'
 
 export default function VerifyPage() {
   const params = useParams()
@@ -55,155 +56,55 @@ export default function VerifyPage() {
 
   const validatePhone = (num: string) => /^07[0-9]{8}$/.test(num)
 
-  // Rate limit check — max 3 OTP requests per phone per 10 minutes
-  const checkOtpRateLimit = async (phoneNumber: string): Promise<{ allowed: boolean; waitMinutes?: number }> => {
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
-
-    const { data: recentOtps } = await supabase
-      .from('otp_verifications')
-      .select('created_at')
-      .eq('phone', phoneNumber)
-      .gte('created_at', tenMinutesAgo)
-      .order('created_at', { ascending: false })
-
-    if (!recentOtps || recentOtps.length < 3) return { allowed: true }
-
-    // Find when the oldest of the 3 was sent — rate limit resets after that
-    const oldestInWindow = new Date(recentOtps[recentOtps.length - 1].created_at)
-    const resetAt = new Date(oldestInWindow.getTime() + 10 * 60 * 1000)
-    const waitMs = resetAt.getTime() - Date.now()
-    const waitMinutes = Math.ceil(waitMs / 60000)
-
-    return { allowed: false, waitMinutes }
-  }
-
-  // Rate limit check — max 5 wrong OTP attempts before lockout
-  const checkAttemptLimit = async (otpRecordId: string, currentAttempts: number): Promise<boolean> => {
-    return currentAttempts < 5
-  }
-
+  // The code is generated, sent, rate-limited and checked on the server. The
+  // browser never sees the stored code and cannot mark the phone as verified.
   const sendOtp = async () => {
     setError('')
     if (!validatePhone(phone)) {
       setError('Enter a valid Sri Lankan mobile number starting with 07 (10 digits)')
       return
     }
-
     setLoading(true)
-
-    // Rate limit check
-    const rateCheck = await checkOtpRateLimit(phone)
-    if (!rateCheck.allowed) {
-      setError(`Too many OTP requests. Please wait ${rateCheck.waitMinutes} minute${rateCheck.waitMinutes === 1 ? '' : 's'} before requesting another code.`)
-      setLoading(false)
-      return
-    }
-
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
-
-    const { error: otpError } = await supabase
-      .from('otp_verifications')
-      .insert({
-        user_id: user.id,
-        phone,
-        otp_code: otpCode,
-        expires_at: expiresAt,
-        verified: false,
-        attempts: 0,
-      })
-
-    if (otpError) {
-      setError('Could not send OTP. Please try again.')
-      setLoading(false)
-      return
-    }
-
-   
-
-    // inside sendOtp function, after inserting OTP to database:
-    const smsResult = await sendOtpSMS(phone, otpCode)
-    if (!smsResult.success) {
-      console.log(`[DEV] OTP for ${phone}: ${otpCode}`) // fallback log
-    }
-
-    setStep('otp')
-    setResendCooldown(60)
+    const res = await apiPost<{ status?: string; error?: string; retry_after_seconds?: number; resend_after_seconds?: number; test_code?: string }>(
+      '/api/otp/send', { phone })
     setLoading(false)
+
+    if (res.data.status === 'already_verified') {
+      router.push(`/booking/${slotId}/payment`)
+      return
+    }
+    if (!res.ok) {
+      const wait = res.data.retry_after_seconds
+      setError(res.data.error === 'rate_limited' && wait
+        ? `Too many code requests. Please wait ${Math.ceil(wait / 60)} minute${Math.ceil(wait / 60) === 1 ? '' : 's'} and try again.`
+        : userMessage(res.data.error))
+      return
+    }
+    if (res.data.test_code) console.info('[TEST MODE] OTP:', res.data.test_code)
+    setStep('otp')
+    setResendCooldown(res.data.resend_after_seconds ?? 60)
   }
 
   const verifyOtp = async () => {
     setError('')
-    if (otp.length !== 6) {
+    if (!/^\d{6}$/.test(otp)) {
       setError('Enter the 6-digit code sent to your phone')
       return
     }
-
     setLoading(true)
-
-    const { data: otpRecord } = await supabase
-      .from('otp_verifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('phone', phone)
-      .eq('verified', false)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-
-    if (!otpRecord) {
-      setError('OTP not found. Please request a new one.')
-      setLoading(false)
-      return
-    }
-
-    // Check expiry
-    if (new Date(otpRecord.expires_at) < new Date()) {
-      setError('OTP has expired. Please request a new one.')
-      setLoading(false)
-      return
-    }
-
-    // Check attempt limit — max 5 attempts
-    if (otpRecord.attempts >= 5) {
-      setError('Too many incorrect attempts. Please request a new code.')
-      setLoading(false)
-      return
-    }
-
-    // Wrong OTP
-    if (otpRecord.otp_code !== otp) {
-      const attemptsLeft = 4 - otpRecord.attempts
-
-      await supabase
-        .from('otp_verifications')
-        .update({ attempts: otpRecord.attempts + 1 })
-        .eq('id', otpRecord.id)
-
-      if (attemptsLeft <= 0) {
-        setError('Too many incorrect attempts. Please request a new code.')
-      } else {
-        setError(`Incorrect code. ${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining.`)
-      }
-
-      setLoading(false)
-      return
-    }
-
-    // OTP correct — mark verified
-    await supabase
-      .from('otp_verifications')
-      .update({ verified: true })
-      .eq('id', otpRecord.id)
-
-    // Update profile
-    await supabase
-      .from('profiles')
-      .update({ phone, phone_verified: true })
-      .eq('id', user.id)
-
+    const res = await apiPost<{ status?: string; error?: string; attempts_left?: number }>('/api/otp/verify', { phone, code: otp })
     setLoading(false)
-    router.push(`/booking/${slotId}/payment`)
+
+    if (res.ok && res.data.status === 'verified') {
+      router.push(`/booking/${slotId}/payment`)
+      return
+    }
+    if (res.data.error === 'invalid_code' && typeof res.data.attempts_left === 'number') {
+      const n = res.data.attempts_left
+      setError(`Incorrect code. ${n} attempt${n === 1 ? '' : 's'} remaining.`)
+      return
+    }
+    setError(userMessage(res.data.error))
   }
 
   if (pageLoading || phoneVerified) {

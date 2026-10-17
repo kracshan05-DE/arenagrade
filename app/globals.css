@@ -1,8 +1,26 @@
 @import "tailwindcss";
 
+/* ArenaGrade design tokens. Pages use these via var(--ag-*) where updated;
+   older inline styles use the same literal values. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ag-green: #1B6B3A;        /* primary actions, prices */
+  --ag-green-dark: #0B2818;   /* hero / headers */
+  --ag-green-accent: #4ADE80; /* highlights on dark */
+  --ag-green-soft: #ECFDF5;
+  --ag-bg: #F8FAFC;
+  --ag-surface: #FFFFFF;
+  --ag-border: #E2E8F0;
+  --ag-text: #0F172A;
+  --ag-text-muted: #475569;   /* 7.5:1 on white */
+  --ag-text-subtle: #64748B;  /* 4.8:1 on white (AA for body text) */
+  --ag-amber-bg: #FFFBEB; --ag-amber-text: #92400E;
+  --ag-red-bg: #FEF2F2;   --ag-red-text: #991B1B;
+  --ag-blue-bg: #EFF6FF;  --ag-blue-text: #1D4ED8;
+  --ag-radius: 12px;
+  --ag-focus: #2563EB;
+
+  --background: var(--ag-bg);
+  --foreground: var(--ag-text);
 }
 
 @theme inline {
@@ -12,15 +30,50 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, var(--font-geist-sans), Arial, sans-serif;
+  overflow-x: hidden; /* no sideways scroll on phones */
+}
+
+img, svg, video { max-width: 100%; height: auto; }
+
+/* Visible keyboard focus everywhere (WCAG 2.4.7 / 2.4.11). */
+:where(a, button, input, select, textarea, [role="button"], [role="radio"], [tabindex]):focus-visible {
+  outline: 3px solid var(--ag-focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+button:disabled { cursor: not-allowed; }
+
+/* Comfortable tap targets for the booking controls (WCAG 2.5.8). */
+.ag-tap { min-height: 44px; }
+
+.ag-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+.ag-skip-link {
+  position: absolute; left: 8px; top: -48px; z-index: 1000;
+  background: var(--ag-green-dark); color: #fff; padding: 10px 14px; border-radius: 8px;
+  font-weight: 600; text-decoration: none;
+}
+.ag-skip-link:focus { top: 8px; }
+
+@keyframes ag-spin { to { transform: rotate(360deg); } }
+@keyframes ag-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

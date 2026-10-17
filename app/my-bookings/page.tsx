@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { BookingSkeleton } from '@/components/Skeleton'
-import { sendCancellationRequestAlert } from '@/lib/sms'
+import { apiPost } from '@/lib/apiClient'
+import { userMessage } from '@/lib/userMessages'
 
 interface Booking {
   id: string
@@ -76,6 +77,12 @@ export default function MyBookingsPage() {
     init()
   }, [router])
 
+  // End time of the last hour of a booking (two-hour Solo Court bookings).
+  const lastEnd = (rows: unknown) => {
+    const ends = ((rows as { slots: { end_time: string } | null }[] | null) ?? []).map((r) => r.slots?.end_time).filter(Boolean) as string[]
+    return ends.length ? ends.sort().at(-1) : undefined
+  }
+
   const loadBookings = async (userId: string) => {
     setLoading(true)
     setFetchError('')
@@ -100,14 +107,15 @@ export default function MyBookingsPage() {
 
     const enriched: EnrichedBooking[] = await Promise.all(
       bookingsData.map(async (booking) => {
-        const [{ data: slotData }, { data: courtData }, { data: profileData }] = await Promise.all([
+        const [{ data: slotData }, { data: hourRows }, { data: courtData }, { data: profileData }] = await Promise.all([
           supabase.from('slots').select('slot_date, start_time, end_time, court_type').eq('id', booking.slot_id).single(),
+          supabase.from('booking_slots').select('slots(start_time, end_time)').eq('booking_id', booking.id),
           supabase.from('courts').select('name, locations(name), sport_types(name)').eq('id', booking.court_id).single(),
           supabase.from('profiles').select('full_name, phone').eq('id', booking.user_id).single(),
         ])
         return {
           ...booking,
-          slot: slotData || undefined,
+          slot: slotData ? { ...slotData, end_time: lastEnd(hourRows) ?? slotData.end_time, hours: hourRows?.length || 1 } : undefined,
           court: courtData as any || undefined,
           profile: profileData || undefined,
         }
@@ -118,8 +126,10 @@ export default function MyBookingsPage() {
     setLoading(false)
   }
 
+  // Slot times are Sri Lanka local time (UTC+05:30), whatever the device timezone.
+  // The server enforces the same 24-hour rule; this only decides what to show.
   const isUpcoming = (dateStr: string, startTime?: string) => {
-    const slotDateTime = new Date(`${dateStr}T${startTime || '00:00:00'}`)
+    const slotDateTime = new Date(`${dateStr}T${(startTime || '00:00:00').slice(0, 8)}+05:30`)
     const hoursUntilSlot = (slotDateTime.getTime() - Date.now()) / (1000 * 60 * 60)
     return hoursUntilSlot >= 24
   }
@@ -128,27 +138,12 @@ export default function MyBookingsPage() {
     if (!cancelReason.trim()) { setMessage('Please enter a reason for cancellation.'); return }
     setSubmitting(true)
 
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'cancellation_requested', cancellation_reason: cancelReason.trim() })
-      .eq('id', booking.id)
-
-    if (error) {
-      setMessage('Something went wrong. Please try again.')
+    const res = await apiPost<{ status?: string; error?: string }>(`/api/bookings/${booking.id}/cancel`, { reason: cancelReason.trim() })
+    if (!res.ok) {
+      setMessage(userMessage(res.data.error))
       setSubmitting(false)
       return
     }
-
-    // Alert Praneeth via SMS
-    await sendCancellationRequestAlert({
-      customer_phone: booking.profile?.phone || '',
-      customer_name: booking.profile?.full_name || null,
-      slot_date: booking.slot?.slot_date || '',
-      start_time: booking.slot?.start_time?.slice(0,5) || '',
-      end_time: booking.slot?.end_time?.slice(0,5) || '',
-      court_name: booking.court?.name || '',
-      reason: cancelReason.trim(),
-    })
 
     setCancellingId(null)
     setCancelReason('')
