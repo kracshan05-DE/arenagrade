@@ -1,9 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
+import { apiPost } from '@/lib/apiClient'
+import { userMessage } from '@/lib/userMessages'
+
+type InitResponse =
+  | { mode: 'payhere'; action: string; fields: Record<string, string>; hold_expires_at: string }
+  | { mode: 'simulation'; order_id: string; amount: string; hold_expires_at: string }
 
 interface Slot {
   id: string
@@ -49,6 +55,10 @@ export default function PaymentPage() {
   const [error, setError] = useState('')
   const [timeLeft, setTimeLeft] = useState(0)
   const [processing, setProcessing] = useState(false)
+  const [simOrder, setSimOrder] = useState<string | null>(null)
+  const [payError, setPayError] = useState('')
+  const searchParams = useSearchParams()
+  const cancelledAtGateway = searchParams.get('cancelled') === '1'
 
   useEffect(() => {
     const init = async () => {
@@ -120,61 +130,44 @@ export default function PaymentPage() {
   const timerBg = timeLeft < 120 ? '#FEE2E2' : timeLeft < 300 ? '#FFFBEB' : '#ECFDF5'
   const timerBorder = timeLeft < 120 ? '#FECACA' : timeLeft < 300 ? '#FDE68A' : '#6EE7B7'
 
-  // Simulate payment completion (dummy flow)
-  const completePayment = async () => {
-    if (!slot || !court || !user) return
+  // Payment is started on the server (amount from the slot, signed request).
+  // The booking is confirmed only by PayHere's verified server notification —
+  // never by this page.
+  const startPayment = async () => {
+    if (!slot) return
     setProcessing(true)
-
-    const orderId = `AG-${Date.now()}-${slot.id.slice(0, 8)}`
-
-    // 1. Mark slot as booked
-    const { error: slotError } = await supabase
-      .from('slots')
-      .update({
-        status: 'booked',
-        locked_by: null,
-        lock_expires_at: null,
-      })
-      .eq('id', slot.id)
-      .eq('locked_by', user.id)
-
-    if (slotError) {
-      setError('Failed to confirm booking. Please try again.')
+    setPayError('')
+    const res = await apiPost<InitResponse & { error?: string }>('/api/payments/initiate', { slotId })
+    if (!res.ok) {
+      if (res.data.error === 'phone_not_verified') { router.push(`/booking/${slotId}/verify`); return }
+      setPayError(userMessage(res.data.error))
       setProcessing(false)
       return
     }
-
-    // 2. Create booking record
-    const { error: bookingError } = await supabase
-      .from('bookings')
-      .insert({
-        user_id: user.id,
-        slot_id: slot.id,
-        court_id: slot.court_id,
-        status: 'confirmed',
-        total_lkr: slot.price_lkr,
-        payhere_payment_id: orderId,
-        idempotency_key: orderId,
-      })
-
-    if (bookingError) {
-      setError('Booking record failed. Please contact support with ref: ' + orderId)
-      setProcessing(false)
+    if (res.data.mode === 'payhere') {
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = res.data.action
+      for (const [k, v] of Object.entries(res.data.fields)) {
+        const input = document.createElement('input')
+        input.type = 'hidden'; input.name = k; input.value = v
+        form.appendChild(input)
+      }
+      document.body.appendChild(form)
+      form.submit()
       return
     }
+    // Non-production test mode only (the server refuses it in production).
+    setSimOrder(res.data.order_id)
+    setProcessing(false)
+  }
 
-    // 3. Log to payment audit
-    await supabase.from('payment_audit').insert({
-      payhere_payment_id: orderId,
-      entity_type: 'booking',
-      entity_id: slot.id,
-      event_type: 'completed',
-      amount_lkr: slot.price_lkr,
-      raw_payload: { order_id: orderId, slot_id: slot.id, user_id: user.id, simulated: true },
-    })
-
-    // 4. Redirect to success page
-    router.push(`/booking/${slotId}/payment/success?ref=${orderId}`)
+  const simulate = async (outcome: 'success' | 'failed') => {
+    if (!simOrder) return
+    setProcessing(true)
+    const res = await apiPost<{ result?: string; error?: string }>('/api/payments/simulate', { orderId: simOrder, outcome })
+    if (!res.ok) { setPayError(userMessage(res.data.error)); setProcessing(false); return }
+    router.push(`/booking/${slotId}/payment/success?order=${encodeURIComponent(simOrder)}`)
   }
 
   if (loading) {
@@ -317,28 +310,48 @@ export default function PaymentPage() {
           </div>
         </div>
 
-        {/* DEV MODE notice */}
-        <div style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: '10px', padding: '12px 16px', marginBottom: '14px' }}>
-          <p style={{ fontSize: '12px', color: '#92400E', margin: '0 0 2px', fontWeight: '600' }}>⚙️ Development Mode</p>
-          <p style={{ fontSize: '12px', color: '#92400E', margin: 0 }}>PayHere is not yet connected. Click the button below to simulate a successful payment and test the full booking flow.</p>
-        </div>
+        {cancelledAtGateway && (
+          <div style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: '10px', padding: '12px 16px', marginBottom: '14px' }}>
+            <p style={{ fontSize: '12px', color: '#92400E', margin: 0 }}>Payment was cancelled at PayHere. Your slot is still reserved until the timer ends — you can try again.</p>
+          </div>
+        )}
+        {payError && (
+          <div style={{ background: '#FEF2F2', border: '0.5px solid #FECACA', borderRadius: '10px', padding: '12px 16px', marginBottom: '14px' }}>
+            <p style={{ fontSize: '12px', color: '#991B1B', margin: 0 }}>{payError}</p>
+          </div>
+        )}
 
-        {/* Pay Button */}
-        <button
-          onClick={completePayment}
-          disabled={processing || timeLeft <= 0}
-          style={{
-            width: '100%', background: processing || timeLeft <= 0 ? '#94A3B8' : '#1B6B3A',
-            color: '#fff', border: 'none', borderRadius: '12px', padding: '16px',
-            fontSize: '16px', fontWeight: '700', cursor: processing || timeLeft <= 0 ? 'not-allowed' : 'pointer',
-            marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-          }}
-        >
-          {processing ? 'Processing...' : `Simulate Payment — LKR ${slot?.price_lkr.toLocaleString()}`}
-        </button>
+        {!simOrder ? (
+          <button
+            onClick={startPayment}
+            disabled={processing || timeLeft <= 0}
+            style={{
+              width: '100%', background: processing || timeLeft <= 0 ? '#94A3B8' : '#1B6B3A',
+              color: '#fff', border: 'none', borderRadius: '12px', padding: '16px',
+              fontSize: '16px', fontWeight: '700', cursor: processing || timeLeft <= 0 ? 'not-allowed' : 'pointer',
+              marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            }}
+          >
+            {processing ? 'Redirecting to PayHere...' : `Pay LKR ${slot?.price_lkr.toLocaleString()} with PayHere`}
+          </button>
+        ) : (
+          <div style={{ background: '#FFFBEB', border: '0.5px dashed #F59E0B', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+            <p style={{ fontSize: '12px', color: '#92400E', margin: '0 0 10px', fontWeight: '600' }}>TEST ENVIRONMENT — simulated payment (not available on the live site)</p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => simulate('success')} disabled={processing}
+                style={{ flex: 1, background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontWeight: 600, cursor: 'pointer' }}>
+                Simulate success
+              </button>
+              <button onClick={() => simulate('failed')} disabled={processing}
+                style={{ flex: 1, background: '#fff', color: '#991B1B', border: '0.5px solid #FECACA', borderRadius: '8px', padding: '10px', fontWeight: 600, cursor: 'pointer' }}>
+                Simulate failure
+              </button>
+            </div>
+          </div>
+        )}
 
         <p style={{ textAlign: 'center', fontSize: '12px', color: '#94A3B8', margin: '0 0 20px' }}>
-          This button will be replaced with PayHere when credentials are ready
+          Your booking is confirmed only after PayHere confirms the payment, within your 10-minute reservation.
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>

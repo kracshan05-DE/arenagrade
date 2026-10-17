@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
+import { rpcErrorCode } from '@/lib/apiClient'
+import { userMessage } from '@/lib/userMessages'
 
 interface Slot {
   id: string
@@ -74,32 +76,30 @@ export default function BookingPage() {
         return
       }
 
-      if (slotData.status === 'locked' && slotData.locked_by === currentUser.id) {
-        const expiresAt = new Date(slotData.lock_expires_at || '').getTime()
-        const remaining = Math.floor((expiresAt - Date.now()) / 1000)
-        if (remaining > 0) {
-          setSlot(slotData)
-          slotRef.current = slotData
-          const { data: courtData } = await supabase
-            .from('courts').select('*, locations(name, address), sport_types(name)').eq('id', slotData.court_id).single()
-          if (courtData) setCourt(courtData)
-          setLocked(true)
-          setTimeLeft(remaining)
-          setLoading(false)
-          return
-        } else {
-          await supabase.from('slots').update({
-            status: 'available', locked_by: null, lock_expires_at: null
-          }).eq('id', slotData.id)
-          slotData.status = 'available'
-        }
+      const lockActive = slotData.status === 'locked' && slotData.lock_expires_at && new Date(slotData.lock_expires_at).getTime() > Date.now()
+
+      if (lockActive && slotData.locked_by === currentUser.id) {
+        // Our own hold (e.g. page refresh): resume the countdown from the server's expiry.
+        const remaining = Math.floor((new Date(slotData.lock_expires_at).getTime() - Date.now()) / 1000)
+        setSlot(slotData)
+        slotRef.current = slotData
+        const { data: courtData } = await supabase
+          .from('courts').select('*, locations(name, address), sport_types(name)').eq('id', slotData.court_id).single()
+        if (courtData) setCourt(courtData)
+        setLocked(true)
+        setTimeLeft(remaining)
+        setLoading(false)
+        return
       }
 
-      if (slotData.status === 'locked' && slotData.locked_by !== currentUser.id) {
+      if (lockActive) {
         setError('This slot is currently being reserved by another customer. Please go back and try another slot.')
         setLoading(false)
         return
       }
+
+      // An expired hold counts as available; the server releases it when we reserve.
+      if (slotData.status === 'locked') slotData.status = 'available'
 
       setSlot(slotData)
       slotRef.current = slotData
@@ -142,9 +142,7 @@ export default function BookingPage() {
   }, [locked])
   const handleExpiry = async () => {
     if (slotRef.current) {
-      await supabase.from('slots').update({
-        status: 'available', locked_by: null, lock_expires_at: null
-      }).eq('id', slotRef.current.id)
+      await supabase.rpc('release_hold', { p_slot_id: slotRef.current.id })
     }
     setLocked(false)
     setError('Your reservation expired. Please go back and select the slot again.')
@@ -152,9 +150,7 @@ export default function BookingPage() {
 
   const releaseAndExit = async () => {
     if (slotRef.current) {
-      await supabase.from('slots').update({
-        status: 'available', locked_by: null, lock_expires_at: null
-      }).eq('id', slotRef.current.id)
+      await supabase.rpc('release_hold', { p_slot_id: slotRef.current.id })
     }
     setLocked(false)
     setShowExitWarning(false)
@@ -186,41 +182,23 @@ export default function BookingPage() {
     setLocking(true)
     setError('')
 
-    const { data: freshSlot } = await supabase
-      .from('slots').select('status, version').eq('id', slot.id).single()
+    // The database decides: availability, half/full conflicts, practice blocks,
+    // cut-off time, price and the 10-minute expiry (server clock).
+    const { data, error: holdError } = await supabase.rpc('hold_slot', { p_slot_id: slot.id })
 
-    if (!freshSlot || freshSlot.status !== 'available') {
-      setError('This slot was just taken by another customer. Please go back and choose another slot.')
+    if (holdError || !data) {
+      setError(userMessage(rpcErrorCode(holdError), 'Could not reserve this slot. Please go back and try again.'))
       setLocking(false)
       lockAttempted.current = false
       return
     }
 
-    const lockExpiry = new Date(Date.now() + 600000).toISOString()
-
-    const { data, error: lockError } = await supabase
-      .from('slots')
-      .update({
-        status: 'locked', locked_by: user.id,
-        lock_expires_at: lockExpiry,
-        version: (freshSlot.version || 0) + 1,
-      })
-      .eq('id', slot.id)
-      .eq('status', 'available')
-      .select()
-
-    if (lockError || !data || data.length === 0) {
-      setError('Could not reserve this slot. Someone may have just booked it. Please go back and try again.')
-      setLocking(false)
-      lockAttempted.current = false
-      return
-    }
-
+    const lockExpiry = data.lock_expires_at as string
     const updatedSlot = { ...slot, status: 'locked', lock_expires_at: lockExpiry }
     setSlot(updatedSlot)
     slotRef.current = updatedSlot
     setLocked(true)
-    setTimeLeft(600)
+    setTimeLeft(Number(data.seconds_left ?? 600))
     setLocking(false)
   }
 

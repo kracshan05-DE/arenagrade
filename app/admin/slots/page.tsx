@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { rpcErrorCode } from '@/lib/apiClient'
+import { userMessage } from '@/lib/userMessages'
 
 interface Court {
   id: string; name: string; has_half_court: boolean
@@ -243,14 +245,17 @@ export default function AdminSlots() {
   const blockSlot = async (slotId: string) => {
     const reason = blockType === 'iimpact' ? 'IIMPACT Practice' : blockReason
     if (!reason.trim()) { setMessage('Please enter a reason.'); return }
-    await supabase.from('slots').update({ status: 'blocked', internal_reason: reason }).eq('id', slotId)
+    // The database refuses a block that would clash with a booking or active hold.
+    const { error } = await supabase.rpc('admin_block_slot', { p_slot_id: slotId, p_reason: reason })
+    if (error) setMessage(userMessage(rpcErrorCode(error)))
     setBlockingSlotId('')
     setBlockReason('')
     await loadSlots()
   }
 
   const unblockSlot = async (slotId: string) => {
-    await supabase.from('slots').update({ status: 'available', internal_reason: null }).eq('id', slotId)
+    const { error } = await supabase.rpc('admin_unblock_slot', { p_slot_id: slotId })
+    if (error) setMessage(userMessage(rpcErrorCode(error)))
     await loadSlots()
   }
 

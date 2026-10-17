@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { rpcErrorCode } from '@/lib/apiClient'
+import { userMessage } from '@/lib/userMessages'
 
 interface Court {
   id: string
@@ -74,44 +76,21 @@ export default function AdminRecurring() {
     if (data) setBookings(data)
   }
 
+  // Generated on the server: dates are computed in Asia/Colombo, past dates are
+  // skipped, and dates that clash with a customer booking or active hold are
+  // skipped and reported instead of being overwritten.
   const generateSlots = async (booking: RecurringBooking) => {
     setGenerating(true)
     setMessage('')
-
-    const startDate = new Date(booking.date_from + 'T00:00:00')
-    const endDate = new Date(booking.date_to + 'T00:00:00')
-    const slotsToInsert = []
-    const current = new Date(startDate)
-
-    while (current <= endDate) {
-      if (current.getDay() === booking.day_of_week) {
-        const dateStr = current.toLocaleDateString('en-CA')
-        slotsToInsert.push({
-          court_id: booking.court_id,
-          slot_date: dateStr,
-          start_time: booking.start_time + ':00',
-          end_time: booking.end_time + ':00',
-          court_type: booking.court_type,
-          status: 'blocked',
-          price_lkr: booking.price_lkr,
-          internal_reason: booking.company_name,
-          version: 0,
-        })
-      }
-      current.setDate(current.getDate() + 1)
-    }
-
-    if (slotsToInsert.length === 0) {
-      setMessage('No matching dates found in the selected range.')
-      setGenerating(false)
-      return
-    }
-
-    const { error } = await supabase.from('slots').upsert(slotsToInsert, { onConflict: 'court_id,slot_date,start_time,court_type' })
+    const { data, error } = await supabase.rpc('admin_generate_recurring_slots', { p_recurring_id: booking.id })
     if (error) {
-      setMessage(`Generated ${slotsToInsert.length} slots (some may have already existed).`)
+      setMessage(userMessage(rpcErrorCode(error)))
     } else {
-      setMessage(`✅ Generated ${slotsToInsert.length} recurring slots for ${booking.company_name}`)
+      const r = data as { created: number; converted: number; already_blocked: number; conflict_dates: string[] }
+      const clashes = r.conflict_dates?.length
+        ? ` ${r.conflict_dates.length} date(s) skipped because a customer booking exists: ${r.conflict_dates.join(', ')}.`
+        : ''
+      setMessage(`Recurring slots for ${booking.company_name}: ${r.created} created, ${r.converted} blocked, ${r.already_blocked} already blocked.${clashes}`)
     }
     setGenerating(false)
   }

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { BookingSkeleton } from '@/components/Skeleton'
-import { sendCancellationRequestAlert } from '@/lib/sms'
+import { apiPost } from '@/lib/apiClient'
+import { userMessage } from '@/lib/userMessages'
 
 interface Booking {
   id: string
@@ -118,8 +119,10 @@ export default function MyBookingsPage() {
     setLoading(false)
   }
 
+  // Slot times are Sri Lanka local time (UTC+05:30), whatever the device timezone.
+  // The server enforces the same 24-hour rule; this only decides what to show.
   const isUpcoming = (dateStr: string, startTime?: string) => {
-    const slotDateTime = new Date(`${dateStr}T${startTime || '00:00:00'}`)
+    const slotDateTime = new Date(`${dateStr}T${(startTime || '00:00:00').slice(0, 8)}+05:30`)
     const hoursUntilSlot = (slotDateTime.getTime() - Date.now()) / (1000 * 60 * 60)
     return hoursUntilSlot >= 24
   }
@@ -128,27 +131,12 @@ export default function MyBookingsPage() {
     if (!cancelReason.trim()) { setMessage('Please enter a reason for cancellation.'); return }
     setSubmitting(true)
 
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'cancellation_requested', cancellation_reason: cancelReason.trim() })
-      .eq('id', booking.id)
-
-    if (error) {
-      setMessage('Something went wrong. Please try again.')
+    const res = await apiPost<{ status?: string; error?: string }>(`/api/bookings/${booking.id}/cancel`, { reason: cancelReason.trim() })
+    if (!res.ok) {
+      setMessage(userMessage(res.data.error))
       setSubmitting(false)
       return
     }
-
-    // Alert Praneeth via SMS
-    await sendCancellationRequestAlert({
-      customer_phone: booking.profile?.phone || '',
-      customer_name: booking.profile?.full_name || null,
-      slot_date: booking.slot?.slot_date || '',
-      start_time: booking.slot?.start_time?.slice(0,5) || '',
-      end_time: booking.slot?.end_time?.slice(0,5) || '',
-      court_name: booking.court?.name || '',
-      reason: cancelReason.trim(),
-    })
 
     setCancellingId(null)
     setCancelReason('')

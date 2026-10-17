@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { safeRedirectPath } from '@/lib/safeRedirect'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const redirect = requestUrl.searchParams.get('redirect') || '/'
+  // Only same-site paths: blocks open redirects such as ?redirect=https://evil.example
+  const redirect = safeRedirectPath(requestUrl.searchParams.get('redirect'))
 
   if (code) {
     const supabase = createClient(

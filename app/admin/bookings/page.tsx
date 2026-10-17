@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { sendCancellationRequestAlert, sendCancellationApprovedSMS, sendCancellationRejectedSMS } from '@/lib/sms'
+import { apiPost } from '@/lib/apiClient'
+import { userMessage } from '@/lib/userMessages'
 
 
 interface Booking {
@@ -29,6 +30,12 @@ interface EnrichedBooking extends Booking {
   profile?: {
     full_name: string | null
     phone: string | null
+  }
+  refund?: {
+    id: string
+    status: 'pending' | 'initiated' | 'completed' | 'cancelled'
+    bank_reference: string | null
+    amount_lkr: number
   }
   court?: {
     name: string
@@ -87,6 +94,11 @@ export default function AdminBookings() {
 
     if (error || !bookingsData) { setLoading(false); return }
 
+    const { data: refundRows } = await supabase
+      .from('refunds').select('id, booking_id, status, bank_reference, amount_lkr')
+      .in('booking_id', bookingsData.map((b) => b.id))
+    const refundByBooking = new Map((refundRows || []).map((r) => [r.booking_id, r]))
+
     const enriched: EnrichedBooking[] = await Promise.all(
       bookingsData.map(async (booking) => {
         const [{ data: slotData }, { data: profileData }, { data: courtData }] = await Promise.all([
@@ -99,6 +111,7 @@ export default function AdminBookings() {
           slot: slotData || undefined,
           profile: profileData || undefined,
           court: courtData || undefined,
+          refund: refundByBooking.get(booking.id) || undefined,
         }
       })
     )
@@ -145,49 +158,42 @@ export default function AdminBookings() {
 
   const hasActiveFilters = searchPhone || filterStatus !== 'all' || filterDate || filterCourt !== 'all'
 
-  const approveCancel = async (booking: EnrichedBooking) => {
+  // Decisions are made on the server: it checks admin rights, updates the
+  // booking atomically, releases the slot, creates the pending refund and only
+  // then notifies the customer.
+  const decide = async (booking: EnrichedBooking, decision: 'approve' | 'reject') => {
     setProcessing(booking.id)
-
-    await supabase.from('bookings').update({
-      status: 'cancelled',
-      refund_amount_lkr: booking.total_lkr,
-      cancelled_by: 'admin',
-    }).eq('id', booking.id)
-
-    await sendCancellationApprovedSMS({
-      phone: booking.profile?.phone || '',
-      court_name: booking.court?.name || '',
-      slot_date: booking.slot?.slot_date || '',
-      start_time: booking.slot?.start_time?.slice(0,5) || '',
-      amount: booking.total_lkr,
-    })
-
-    if (booking.slot_id) {
-      await supabase.from('slots').update({
-        status: 'available',
-        locked_by: null,
-        lock_expires_at: null,
-      }).eq('id', booking.slot_id)
+    const res = await apiPost<{ status?: string; error?: string; customer_sms?: string }>(
+      `/api/admin/bookings/${booking.id}/decision`, { decision })
+    if (!res.ok) {
+      setMessage(userMessage(res.data.error))
+    } else if (decision === 'approve') {
+      setMessage(`Cancellation approved. Refund of LKR ${booking.total_lkr.toLocaleString()} is PENDING — record the bank transfer below once it is made.${res.data.customer_sms === 'failed' ? ' (Customer SMS failed — please contact them.)' : ''}`)
+    } else {
+      setMessage(`Cancellation request rejected. Booking remains confirmed.${res.data.customer_sms === 'failed' ? ' (Customer SMS failed — please contact them.)' : ''}`)
     }
-
-    setMessage(`Cancellation approved. Refund of LKR ${booking.total_lkr.toLocaleString()} to be processed via PayHere.`)
     setProcessing(null)
     await loadBookings()
   }
+  const approveCancel = (booking: EnrichedBooking) => decide(booking, 'approve')
+  const rejectCancel = (booking: EnrichedBooking) => decide(booking, 'reject')
 
-  const rejectCancel = async (booking: EnrichedBooking) => {
+  const updateRefund = async (booking: EnrichedBooking, status: 'initiated' | 'completed' | 'cancelled') => {
+    if (!booking.refund) return
+    let bank_reference: string | undefined
+    if (status === 'completed') {
+      const ref = window.prompt('Bank transfer reference for this refund (required):')
+      if (!ref || !ref.trim()) return
+      bank_reference = ref.trim()
+    }
+    if (status === 'cancelled' && !window.confirm('Cancel this refund record? Only do this if no refund is owed.')) return
     setProcessing(booking.id)
-    await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', booking.id)
-    await sendCancellationRejectedSMS({
-      phone: booking.profile?.phone || '',
-      court_name: booking.court?.name || '',
-      slot_date: booking.slot?.slot_date || '',
-      start_time: booking.slot?.start_time?.slice(0,5) || '',
-    })
-    setMessage('Cancellation request rejected. Booking remains confirmed.')
+    const res = await apiPost<{ error?: string }>(`/api/admin/refunds/${booking.refund.id}`, { status, bank_reference })
+    setMessage(res.ok ? `Refund marked ${status}.` : userMessage(res.data.error))
     setProcessing(null)
     await loadBookings()
   }
+
 
   // Export to CSV
   const exportCSV = () => {
@@ -443,6 +449,32 @@ export default function AdminBookings() {
                         <div>
                           <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>REFUND AMOUNT</p>
                           <p style={{ fontSize: '12px', color: '#1B6B3A', fontWeight: '700', margin: 0 }}>LKR {booking.refund_amount_lkr.toLocaleString()}</p>
+                        </div>
+                      )}
+                      {booking.refund && (
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>REFUND STATUS</p>
+                          <p style={{ fontSize: '12px', fontWeight: '700', margin: '0 0 6px', color: booking.refund.status === 'completed' ? '#065F46' : '#92400E' }}>
+                            {booking.refund.status.toUpperCase()}{booking.refund.bank_reference ? ` · ref ${booking.refund.bank_reference}` : ''}
+                          </p>
+                          {(booking.refund.status === 'pending' || booking.refund.status === 'initiated') && (
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {booking.refund.status === 'pending' && (
+                                <button onClick={() => updateRefund(booking, 'initiated')} disabled={processing === booking.id}
+                                  style={{ fontSize: '11px', background: '#FFFBEB', color: '#92400E', border: '0.5px solid #FDE68A', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer' }}>
+                                  Mark transfer started
+                                </button>
+                              )}
+                              <button onClick={() => updateRefund(booking, 'completed')} disabled={processing === booking.id}
+                                style={{ fontSize: '11px', background: '#ECFDF5', color: '#065F46', border: '0.5px solid #6EE7B7', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer' }}>
+                                Mark refunded (needs bank ref)
+                              </button>
+                              <button onClick={() => updateRefund(booking, 'cancelled')} disabled={processing === booking.id}
+                                style={{ fontSize: '11px', background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '6px', padding: '5px 10px', cursor: 'pointer' }}>
+                                Cancel refund
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

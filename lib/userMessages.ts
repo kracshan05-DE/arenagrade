@@ -1,0 +1,41 @@
+// Plain-language messages for error codes returned by the server/database.
+const MESSAGES: Record<string, string> = {
+  not_authenticated: 'Please sign in again to continue.',
+  slot_not_found: 'This slot could not be found. It may have been removed.',
+  slot_unavailable: 'This slot was just reserved or booked by someone else. Please choose another slot.',
+  slot_conflict: 'This time is no longer available because an overlapping court booking or practice block exists. Please choose another slot.',
+  slot_in_past: 'This slot has already started. Please choose a later time.',
+  court_unavailable: 'This court is not taking bookings right now.',
+  half_court_not_offered: 'Half-court booking is not offered on this court.',
+  half_court_after_cutoff: 'Half courts can only be booked before the daily cut-off time. Please choose a full court.',
+  slot_price_invalid: 'This slot has no valid price yet, so it cannot be booked. Please contact us.',
+  too_many_holds: 'You already have 3 slots reserved. Complete or release one before reserving another.',
+  hold_invalid_or_expiring: 'Your 10-minute reservation has ended or is about to end. Please go back and select the slot again.',
+  phone_not_verified: 'Please verify your mobile number before paying.',
+  payments_unavailable: 'Online payment is temporarily unavailable. Please try again later.',
+  rate_limited: 'Too many attempts. Please wait a little and try again.',
+  invalid_phone: 'Enter a valid Sri Lankan mobile number (07XXXXXXXX).',
+  sms_failed: 'We could not send the SMS right now. Please try again in a minute.',
+  invalid_code: 'That code is not correct.',
+  expired: 'This code has expired. Please request a new one.',
+  too_many_attempts: 'Too many incorrect attempts. Please request a new code.',
+  no_active_code: 'No active code for this number. Please request a new one.',
+  invalid_input: 'Please check the details and try again.',
+  booking_not_found: 'Booking not found.',
+  booking_not_cancellable: 'This booking can no longer be cancelled.',
+  cancellation_window_closed: 'Cancellations must be requested at least 24 hours before the slot starts.',
+  invalid_reason: 'Please enter a reason (3–500 characters).',
+  forbidden: 'You do not have permission to do this.',
+  block_conflicts_with_booking: 'This slot overlaps a customer booking or an active reservation, so it cannot be blocked. Cancel the booking first.',
+  booking_not_pending_cancellation: 'This booking is no longer waiting for a cancellation decision. Refresh the page.',
+  invalid_refund_transition: 'That refund status change is not allowed.',
+  bank_reference_required: 'Enter the bank transfer reference to mark the refund completed.',
+  refund_not_found: 'Refund not found.',
+  recurring_invalid: 'The recurring booking details are invalid.',
+  recurring_range_too_long: 'The recurring date range is too long (max ~13 months).',
+  server_error: 'Something went wrong on our side. Please try again.',
+}
+
+export function userMessage(code: string | null | undefined, fallback = 'Something went wrong. Please try again.') {
+  return (code && MESSAGES[code]) || fallback
+}

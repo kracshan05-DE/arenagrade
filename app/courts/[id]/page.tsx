@@ -26,6 +26,7 @@ interface Court {
 
 interface Slot {
   id: string
+  slot_date: string
   start_time: string
   end_time: string
   court_type: string
@@ -57,7 +58,7 @@ export default function CourtPage() {
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' })
   const maxDate = new Date()
   maxDate.setDate(maxDate.getDate() + 30)
-  const maxDateStr = maxDate.toISOString().split('T')[0]
+  const maxDateStr = maxDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' })
 
   useEffect(() => {
     const loadCourt = async () => {
@@ -108,28 +109,44 @@ export default function CourtPage() {
     if (slot.court_type === 'half_b') timeGroups[key].half_b = slot
   })
 
+  // Clock for display rules (re-rendered every 30s so started/expired slots update).
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(t)
+  }, [])
+
+  const slotHasStarted = (slot: Slot) =>
+    new Date(`${slot.slot_date}T${slot.start_time.slice(0, 8)}+05:30`).getTime() <= now
+
   const isPeakSlot = (startTime: string) => {
     if (!court) return false
     const cutoff = court.half_court_cutoff || '14:00:00'
     return startTime >= cutoff
   }
 
-  // Full court N/A if either half is booked/locked
+  // Display only — the server enforces the same rules when a slot is reserved.
+  // An expired hold is free again; a started slot cannot be booked.
+  const liveStatus = (slot?: Slot): string => {
+    if (!slot) return 'na'
+    if (slot.status === 'locked' && slot.lock_expires_at && new Date(slot.lock_expires_at).getTime() <= now) return 'available'
+    if (slot.status === 'available' && slotHasStarted(slot)) return 'na'
+    return slot.status
+  }
+  const occupied = (slot?: Slot) => ['booked', 'locked', 'blocked'].includes(liveStatus(slot))
+
+  // Full court N/A if either half is booked, reserved or blocked for practice
   const getEffectiveFullCourtStatus = (group: GroupedSlot): string => {
     const fc = group.full_court
     if (!fc) return 'na'
-    const halfABlocked = group.half_a && (group.half_a.status === 'booked' || group.half_a.status === 'locked')
-    const halfBBlocked = group.half_b && (group.half_b.status === 'booked' || group.half_b.status === 'locked')
-    if (halfABlocked || halfBBlocked) return 'na'
-    return fc.status
+    if (occupied(group.half_a) || occupied(group.half_b)) return 'na'
+    return liveStatus(fc)
   }
 
-  // Half courts N/A if full court is booked/locked
+  // Half courts N/A if the full court is booked, reserved or blocked
   const getEffectiveHalfCourtStatus = (group: GroupedSlot, slot: Slot): string => {
-    const fc = group.full_court
-    const fullCourtBlocked = fc && (fc.status === 'booked' || fc.status === 'locked')
-    if (fullCourtBlocked) return 'na'
-    return slot.status
+    if (occupied(group.full_court)) return 'na'
+    return liveStatus(slot)
   }
 
   const getSlotStyle = (status: string): React.CSSProperties => {
