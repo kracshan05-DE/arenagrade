@@ -1,369 +1,353 @@
 # ArenaGrade — Production Readiness Report
 
-Branch: `security/production-readiness` · Prepared: 2026-10-18 · Scope: full repository audit, fixes and automated QA.
+Target public launch: **1 November 2026** · Report updated: 18 October 2026
 
-## A. Executive decision: **NOT READY** (today)
+Status labels used throughout:
+**Implemented** (code written) · **Locally tested** (automated tests on a local PostgreSQL 17 with your production schema and policies) · **Staging-verified** · **Production-verified**. Nothing in this report is staging- or production-verified yet.
 
-The code on this branch fixes every launch-blocking problem found in the
-repository, and 127 automated tests (including genuinely concurrent database
-tests) pass. But the fixes have **not yet been applied to or verified against the
-real Supabase database**, and **PayHere has never been exercised** (no
-credentials yet). The live site today still runs the old code, where anyone
-signed in can book a court for free with the "Simulate Payment" button.
+---
 
-It becomes **READY FOR CONTROLLED LAUNCH** once the steps in section J are done:
-schema discovery reviewed, migrations applied to a staging copy and then
-production, environment variables set, and the PayHere sandbox checklist (E)
-passed.
+## 1. Executive summary and readiness decision
 
-**Urgent interim step (no code needed):** until this branch is deployed, take
-online booking offline or keep the site private, because the current production
-code lets anyone confirm bookings without paying.
+**Decision: NOT READY for public booking (today).**
 
-### What was verified, and how
+All code work is implemented and locally tested: 165 automated tests pass, the production build passes, and a headless-browser audit shows 0 accessibility violations and 0 horizontal overflow. Four attacks that work on your live database today are proven to fail after the migrations.
 
-| Category | Status |
+None of this is live yet. The live site still runs the old code and old database policies, under which any signed-in customer can make themselves admin, book a court for free, or create a confirmed booking at any price.
+
+It becomes **ready for public launch** once the migrations and scripts are applied (staging first), PayHere sandbox passes, Text.lk, Resend and the daily report are configured and tested, and the checklist in section 17 is complete.
+
+**Recommended now (no code change, needs your approval):** take online booking offline until the fixes are deployed. Options, safest first:
+1. In Supabase, set every court to inactive (`update public.courts set is_active = false;`). Courts disappear from search, and no slot can be held.
+2. Or protect the Vercel deployment with a password (Deployment Protection), or point the domain to a "coming soon" page.
+
+Option 1 is reversible in one statement and doesn't touch bookings.
+
+---
+
+## 2. Repository branch and commits
+
+- **Branch:** `security/production-readiness`, based on `main` @ `799ca6d` (unchanged on GitHub since work began).
+- **Commits:**
+  1. `f0d5df0` Production readiness: server-side booking, OTP and payments; RLS; tests
+  2. `1fc2ee2` Align migrations with the verified production schema; prove exploits closed
+  3. `5da1e49` Two courts, two-hour Solo Court reservations, data scripts, UI/UX pass
+  4. This report.
+- **Push status: blocked.** GitHub is linked and the repository is readable, but pushes return HTTP 403 ("Claude doesn't have GitHub access … install the Claude GitHub App"). Install it at https://github.com/apps/claude/installations/select_target for `arenagrade`, or apply the patch (section 16). Nothing was merged to `main` or deployed.
+
+---
+
+## 3. Files changed
+
+| Area | Files |
 |---|---|
-| Code reviewed | All 45 source files, every browser→Supabase call, both API routes |
-| Code modified | See section I (database migrations, 10 server routes, 9 pages) |
-| Tests executed | 136 (unit 39 · database 76 · route-level 21) — **all passed** |
-| Test-quality check | Suite run against a deliberately broken hold function: **13 tests fail**, proving the concurrency tests detect double booking |
-| Build | `npm run build` passes (Next.js 16.3.8), build-time guard passes |
-| Types | `tsc --noEmit` clean |
-| Lint | 44 errors / 20 warnings — same per-file errors as before the work (pre-existing UI debt, not new) |
-| Dependencies | `npm audit --omit=dev`: **0** vulnerabilities (was 1 critical, 4 high) |
-| Client bundles | No secret names or server-only functions present |
-| Schema & policies | **Verified** from production discovery output (2026-10-18); test fixture mirrors it, including the original policies |
-| Pending external checks | Migration apply on staging/production, PayHere sandbox, Text.lk/Resend delivery, Vercel env, Supabase backups |
+| Database migrations | `supabase/migrations/20261018000100…0800_*.sql` (8 files) |
+| Owner-run data scripts | `supabase/data/01_court_setup.sql`, `02_cleanup_test_bookings.sql`, `03_admin_accounts.sql` |
+| Read-only discovery | `supabase/discovery/01…04_*.sql` |
+| Server routes (new) | `app/api/otp/{send,verify}`, `app/api/payments/{initiate,payhere/notify,simulate}`, `app/api/bookings/[id]/cancel`, `app/api/admin/bookings/[id]/decision`, `app/api/admin/refunds/[id]`, `app/api/cron/daily-report`, `app/api/health` |
+| Server libraries (new) | `lib/server/*` (env, db seam, http, log, otp, payhere, payments, alerts, report period, notify/sms, notify/email, notify/templates) |
+| Shared (new) | `lib/apiClient.ts`, `lib/userMessages.ts`, `lib/phone.ts`, `lib/safeRedirect.ts`, `lib/courtInfo.ts` |
+| Removed | `app/api/send-sms`, `app/api/send-email`, `lib/sms.ts`, `lib/email.ts`, `lib/rateLimitHelper.ts` |
+| Pages changed | home, court detail, booking, verify, payment, success, my-bookings, auth, auth callback, privacy, admin bookings, admin slots, admin recurring, admin courts, layout, `globals.css` |
+| Config | `next.config.ts` (security headers), `vercel.json` (cron), `package.json` (Next 16.3.8, scripts), `scripts/predeploy-check.mjs`, `.env.example`, `.gitignore`, `vitest.config.ts` |
+| Tests | `tests/unit/*`, `tests/db/*`, `tests/api/*`, `supabase/tests/fixtures/*` |
 
 ---
 
-## B. Architecture and database
+## 4. Database migrations and exact execution order
 
-```
-Browser (Next.js pages, Supabase anon key)
-  ├─ reads public data directly (courts, slots, own bookings) — RLS limited
-  ├─ rpc hold_slot / release_hold                  ──► Postgres (checks auth.uid())
-  ├─ rpc admin_block_slot / admin_unblock_slot /
-  │      admin_generate_recurring_slots            ──► Postgres (checks super_admin)
-  └─ POST /api/* with Bearer access token          ──► Vercel route handlers
-                                                         │ verify token (Supabase Auth)
-                                                         ├─ customer actions: rpc as the user
-                                                         ├─ OTP / payments / report: rpc as service_role
-                                                         ├─ Text.lk (SMS)   Resend (email)
-                                                         └─ PayHere checkout signing
-PayHere ──server-to-server──► /api/payments/payhere/notify ──► payment_apply_notification()
-Vercel Cron (+ optional Supabase pg_cron) ──► /api/cron/daily-report
-```
+Apply in this order (staging first), each file as one unit, stopping at the first error:
 
-**Verified booking model:** fixed slot rows — one row per court, date, start/end
-time and `court_type` (`full_court`, `half_a`, `half_b`). Half-court rows are only
-generated for hours starting before `courts.half_court_cutoff`.
+| # | File | What it does |
+|---|---|---|
+| 1 | `20261018000100_foundation.sql` | btree_gist; hardened `is_super_admin`; time/court-part helpers; `audit_log`, `app_events`, `rate_limits`; hardens existing `handle_new_user` |
+| 2 | `…0200_booking_integrity.sql` | Releases expired holds; full natural key on slots; **EXCLUDE constraint** against conflicting holds/bookings; one live booking per slot; `hold_slot`, `release_hold`, admin block/unblock, safe recurring generation |
+| 3 | `…0300_phone_otp.sql` | Hashed OTP challenges, issue/verify functions, closes `otp_verifications`; **trigger blocking browser changes to role/phone/phone_verified** |
+| 4 | `…0400_payments.sql` | `payment_attempts`, `payment_events`, `refunds`; payment creation and notification processing |
+| 5 | `…0500_cancellations_refunds.sql` | Cancellation request/decision and refund state machine |
+| 6 | `…0600_ops_reporting.sql` | `notification_log`, `job_runs`, daily report data, housekeeping |
+| 7 | `…0700_rls_policies.sql` | **Replaces the policies on ArenaGrade tables**; leaves cities/districts/orders and storage untouched |
+| 8 | `…0800_multi_slot_courts.sql` | Two-court support, two-hour reservations, hourly pricing, idempotent generator, report by court |
 
-**Schema status:** verified on 2026-10-18 from the read-only discovery queries
-(PostgreSQL 17.6, no enums, varchar status columns with CHECK constraints).
-`supabase/tests/fixtures/01_production_base_schema.sql` mirrors it, including
-the original RLS policies, `handle_new_user` and `is_super_admin`. The schema is
-still not in Git: commit a `supabase db dump --schema-only`. Adjustments made
-after verification: the slot natural key ignores production's *partial*
-`idx_slots_active`; `bookings.idempotency_key` is already unique; legacy
-`payment_audit` inserts use `ON CONFLICT DO NOTHING`; public catalogue reads keep
-`is_active = true`; storage policies (already correct) are left alone; the
-existing `handle_new_user` is hardened. The existing pg_cron job
-`release-expired-locks` is compatible and can stay. New objects added by the
-migrations:
+Then, in order: `supabase/data/03_admin_accounts.sql` (Part A, read-only) → `02_cleanup_test_bookings.sql` → `01_court_setup.sql`.
 
-| Object | Purpose |
-|---|---|
-| `slots_no_conflicting_active` (EXCLUDE constraint) | No overlapping locked/booked slots on the same court part |
-| `bookings_one_live_per_slot`, `bookings_idempotency_key_uniq` | One live booking per slot / per payment order |
-| `payment_attempts`, `payment_events` | Payment history separate from bookings; deduplicated provider events |
-| `refunds` | Manual refund lifecycle (pending → initiated → completed / cancelled) |
-| `phone_otp_challenges` | Hashed OTPs with attempts, expiry, supersession |
-| `audit_log`, `app_events`, `notification_log`, `job_runs`, `rate_limits` | Audit trail, incidents, message log, scheduled-job idempotency, shared rate limits |
-| Functions | `hold_slot`, `release_hold`, `expire_stale_holds`, `admin_block_slot`, `admin_unblock_slot`, `admin_generate_recurring_slots`, `otp_issue_challenge`, `otp_verify_challenge`, `payment_create_attempt`, `payment_apply_notification`, `request_booking_cancellation`, `admin_decide_cancellation`, `admin_update_refund`, `report_daily`, job/notification helpers |
-
-All SECURITY DEFINER functions pin `search_path = ''`; execute rights are
-granted only to the intended role (tested: `anon` can execute none; the browser
-role can execute only the 9 intended entry points).
-
-**RLS (migration 0700):** catalogue public-read/admin-write; customers read only
-their own bookings, payment attempts, refunds and profile; customers write
-nothing booking-related directly; operational tables admin-read; OTP tables
-server-only; storage `images` bucket admin-write. **This migration drops the
-existing policies on these tables** — review the discovery output first.
+**Rollback limits:**
+- Migrations 1–6 and 8 are additive (new tables, functions, columns). Revert them by dropping the new objects. Old data is untouched, except that expired holds are released and the existing `handle_new_user` gets a pinned `search_path`.
+- Migration 7 replaces policies. To roll back, recreate the old policies from the discovery output, but **that reintroduces the vulnerabilities**.
+- Data scripts keep backup tables (cleanup) or restore from the inventory values (prices).
 
 ---
 
-## C. Booking integrity
+## 5. Security findings and verified fixes
 
-**How conflicts are prevented**
-
-1. **Database constraint (authoritative):**
-   `EXCLUDE USING gist (court_id WITH =, court_part WITH &&, time_range WITH &&) WHERE status IN ('locked','booked')`,
-   where `court_part` is `[1,2)` for half A, `[2,3)` for half B, `[1,3)` for full
-   court, and `time_range` handles slots crossing midnight. Two incompatible
-   active slots physically cannot coexist, whatever code path writes them.
-2. **`hold_slot()`**: locks every slot that could conflict, in a fixed order
-   (no deadlocks), releases expired holds in that set, then refuses if the slot
-   is not available, overlaps a booking/hold/practice block, has started
-   (Asia/Colombo), is a half court at/after the cut-off, has no valid price, or
-   the customer already holds 3 slots. The expiry is set by the database clock
-   (`now() + 10 minutes`); a retry returns the same hold and never extends it.
-3. **Payment confirmation** happens only if the verified payment matches the
-   exact hold (same customer, same expiry, still in the future).
-
-**Club rules applied (owner decisions, 2026-10-17):** full court bookable all
-day; half courts only when the slot *starts* before the cut-off; blocks never
-override bookings or active holds; a payment that succeeds after the hold ended
-is recorded but **not** confirmed and goes to refund.
-
-**Concurrency test results** (separate PostgreSQL sessions fired simultaneously):
-
-| Scenario | Result |
-|---|---|
-| 2 customers, same slot | exactly 1 wins |
-| 15 customers, same slot | exactly 1 wins, 0 conflicting pairs |
-| Same customer, 2 tabs | 1 hold, second call reuses it |
-| 40 rounds × 12 customers racing full / half A / half B | never an incompatible pair; both outcome types observed |
-| Admin practice block racing a customer hold (15 rounds) | never both |
-| Payment confirmation racing a conflicting half-court hold (10 rounds) | never both |
-| 6 duplicate PayHere notifications at once | 1 booking, 5 recorded as duplicates |
-| Hold expiring while another customer reserves | newcomer gets it cleanly |
-| Expired hold, no cleanup job | no longer blocks anything |
-| Partially overlapping slots / midnight-crossing slots | conflict detected |
-| Constraint with the function bypassed | write rejected by the database |
-
-Not covered by automated tests: multiple Vercel instances (the guarantees are
-in PostgreSQL, so they do not depend on instance count, but this was not run on
-Vercel).
-
----
-
-## D. Security findings
-
-| # | Sev | Where | What could happen | Fix | Verified by |
-|---|---|---|---|---|---|
-| 0 | P0 | production policy `customers_update_own_profile` (no column limit) | **Any customer can make themselves super_admin** (and self-verify their phone) with one API call | Trigger blocks browser changes to role/phone/phone_verified; policies replaced | `production-exploits.test.ts`: works before, fails after |
-| 1 | P0 | `payment/page.tsx` `completePayment` | Anyone signed in books any slot without paying ("Simulate Payment" live) | Removed; simulator only server-side, 404 unless `PAYMENT_SIMULATION=enabled` and not production; build fails if enabled in production | route tests, predeploy tests |
-| 2 | P0 | payment page inserts `bookings` / updates `slots` from browser | Confirmed bookings at any price; slots marked booked directly | Bookings created only by `payment_apply_notification` after PayHere signature + amount + hold checks; RLS/grants remove browser writes | DB + RLS + route tests |
-| 3 | P0 | `verify/page.tsx` | OTP generated with `Math.random` in browser, readable from DB, profile `phone_verified` set by browser | Server CSPRNG, HMAC-stored, attempts/expiry/one-time in DB; trigger blocks browser changes to role/phone/phone_verified | DB + route tests |
-| 4 | P0 | slot locking (`booking/[slotId]`) | Full court and a half court held/booked at the same time; customer page ignored practice blocks | EXCLUDE constraint + `hold_slot()` | concurrency tests + mutation run |
-| 5 | P0 | booking page expiry/release | Any user could free or overwrite holds by slot id | `release_hold` checks owner; direct slot writes removed | DB + RLS tests |
-| 6 | P0 | `admin/recurring` upsert | Recurring generation overwrote a customer's booked slot with "blocked" | `admin_generate_recurring_slots()` skips and reports clashes | DB test |
-| 7 | P1 | `/api/send-sms` | Unauthenticated: send any text to any number at your cost, as ArenaGrade | Endpoint deleted; SMS only from trusted server events | route test |
-| 8 | P1 | `/api/send-email` | Open email relay to any address, HTML injection | Endpoint deleted; templates escape all input | route + unit tests |
-| 9 | P1 | `send-sms` `sendSMS` | Text.lk "error" in a 200 response counted as sent | Requires `status: "success"`; records provider uid as *accepted* | route test |
-| 10 | P1 | success page | SMS + email re-sent on every refresh; page claimed "Confirmed" | Page only reads server-verified status and polls; notifications sent once by notify handler | build + route tests |
-| 11 | P1 | `my-bookings`, `admin/bookings` | 24-hour rule, ownership and admin decisions in browser; no refund tracking | `request_booking_cancellation`, `admin_decide_cancellation`, `refunds` | DB + route tests |
-| 12 | P1 | `admin/layout.tsx` | Admin check only in the browser | Admin checks inside every admin function + RLS | DB + RLS tests |
-| 13 | P1 | — | Daily report never scheduled; no failure alerting | Cron + idempotent job + SMS alerts | route tests |
-| 14 | P1 | `package.json` | Next.js 16.2.11 with critical advisories | Next.js 16.3.8 | `npm audit` |
-| 15 | P2 | `auth/callback`, `auth/page` | Open redirect via `?redirect=https://evil…` | `safeRedirectPath` | unit tests |
-| 16 | P2 | 24h check, recurring dates, timers | Used the visitor's device timezone/clock | Asia/Colombo in the database; server clock for holds | DB tests |
-| 17 | P2 | slot generator | Slots with price 0 (no pricing tier) bookable for free | `hold_slot` refuses price ≤ 0 | DB test |
-| 18 | P2 | court page | Already-started slots bookable | Refused server-side; shown as N/A | DB test |
-| 19 | P2 | `next.config.ts` | No security headers | HSTS, nosniff, frame-ancestors none, referrer and permissions policies | build |
-| 20 | P2 | `otp_verifications` | Plaintext codes readable by browsers | Access revoked (purge recommended, needs approval) | RLS test |
-| 21 | P3 | `slots` | `internal_reason` (company names) and `locked_by` publicly readable | **Not fixed** — needs a public view; low risk | — |
-| 22 | P3 | `admin/page.tsx` dashboard | Revenue sums all bookings, including old simulated ones | **Not changed**; daily report uses verified live payments only | — |
-| 23 | P3 | UI lint | 44 pre-existing lint errors | **Not addressed** (unrelated to findings) | — |
-| 24 | P3 | dev tooling | High advisories in eslint's dev-only dependencies | Not shipped to users; update eslint later | `npm audit` |
-
----
-
-## E. PayHere readiness
-
-**Implemented (per the official Checkout API docs):** server-side hash
-`UPPER(md5(merchant_id+order_id+amount+currency+UPPER(md5(secret))))`, two-decimal
-amounts, sandbox/live URLs (live with `www`), notify verification
-`md5sig = UPPER(md5(merchant_id+order_id+payhere_amount+payhere_currency+status_code+UPPER(md5(secret))))`
-with constant-time compare and merchant check, status codes 2/0/-1/-2/-3, card
-details never stored, return page never trusted.
-
-**Tested with mocks only** (signatures computed exactly as documented, reference
-values cross-checked with Python): valid success, duplicates, forged signature,
-wrong merchant, tampered amount, late success, malformed body, out-of-order
-failure→success and success→failure, chargeback.
-
-**Not yet tested against the real PayHere sandbox.** Needed from you: sandbox
-merchant ID/secret, the preview domain registered in the sandbox merchant
-account (PayHere checks the domain), and a public preview URL (notify cannot
-reach localhost).
-
-**Sandbox checklist** (run on a Vercel Preview with `PAYHERE_MODE=sandbox`):
-
-- [ ] Successful payment → booking confirmed, one SMS, one email
-- [ ] Failed payment (sandbox failure card) → no booking, retry possible within hold
-- [ ] Cancel on PayHere page → back on payment page with notice, hold intact
-- [ ] Invalid notification (POST with a wrong md5sig) → 400, nothing changes
-- [ ] Duplicate notification (re-send same body) → 200, no second booking/SMS
-- [ ] Delayed notification beyond the 10 minutes → "payment received, not confirmed", refund row pending, owner alert SMS
-- [ ] Repeated "Pay" clicks → same order_id reused
-- [ ] Close the browser right after paying → booking still confirmed by notify
-- [ ] Database unavailable during notify (pause the staging DB briefly) → 500 returned, critical alert, confirmed after PayHere retries or manual reconciliation
-- [ ] Amount tampering in the browser form → signature mismatch at PayHere
-
----
-
-## F. Failure notifications
-
-Immediate alerts go by **SMS** to `CRITICAL_ALERT_PHONES` — a different channel
-from email, so an email outage is still reported. Alerts are throttled to one per
-event type per hour. Every event is stored in `app_events` with a correlation id
-(order id, report day or request id) and appears in the next daily report until
-resolved.
-
-| Failure | Detection | Severity / alert | Retry & idempotency | Recovery |
+| # | Sev | Finding (verified against the real policies) | Fix | Status |
 |---|---|---|---|---|
-| Paid but booking not confirmed | `payment_apply_notification` → `paid_without_booking` | critical, SMS now | unique order + refund row per attempt | refund manually; mark refund completed with bank ref |
-| Unknown order / amount mismatch / provider mismatch / chargeback | notify processing | critical, SMS now | events deduplicated by key | investigate in PayHere dashboard |
-| Notify processing DB error | notify route catch | critical, SMS now; 500 to PayHere | event not stored, so a retry is processed | check PayHere dashboard, re-send notification |
-| Invalid notify signature | notify route | warning (report) | stored once | none unless repeated (possible attack) |
-| Booking integrity violation | daily report integrity section | action item | — | investigate immediately |
-| OTP SMS failure / timeout | OTP route | error / warning (report) | challenge marked failed; user can resend | check Text.lk balance/status |
-| OTP daily spend cap reached | `otp_issue_challenge` | critical, SMS now | — | raise `SMS_OTP_DAILY_CAP` or investigate abuse |
-| Notification SMS/email failure | `notification_log` | report | claim allows one retry per key | resend manually |
-| Daily report failure | cron route | critical, SMS now | `job_runs` per day; rerun with `?period=&force=1` | fix cause, rerun |
-| PayHere not configured but customers try to pay | initiate route | error (report) | — | set credentials |
-| Scheduled job missed | next run catches up the previous day | — | job claim per day | automatic |
-| Database down | `/api/health` returns 503 | **needs an external uptime monitor (not configured)** | — | Supabase status |
-| Failed deployments | Vercel email notifications | **configure in Vercel** | instant rollback | Vercel dashboard |
-| Unauthorized admin attempts | functions raise `forbidden` (logged) | not alerted | — | review logs |
+| 1 | P0 | Any customer can set their own `role = super_admin` (policy `customers_update_own_profile`) | Trigger blocks browser changes to role/phone/phone_verified; policies replaced | Locally tested: attack succeeds before, fails after |
+| 2 | P0 | Any signed-in user can change any available slot (`authenticated_users_can_lock_slots`) — free bookings, price changes | Direct slot writes removed; holds only via `hold_slots` | Locally tested |
+| 3 | P0 | Customers can insert/update bookings at any price (`customers_insert_own_bookings`, `customers_update_own_bookings`) | Bookings created only by verified payment processing | Locally tested |
+| 4 | P0 | OTP generated in the browser, readable and self-approvable (`otp_verifications` policies) | Server CSPRNG, HMAC storage, limits, one-time use | Locally tested |
+| 5 | P0 | "Simulate Payment" live in production | Removed; simulator only in non-production; build fails if enabled in production | Locally tested |
+| 6 | P0 | Full/half conflicts enforced only in the browser | EXCLUDE constraint + locked hold functions | Locally tested (concurrency + mutation run) |
+| 7 | P0 | Recurring generation could overwrite a booked slot | Server function skips and reports clashes | Locally tested |
+| 8 | P1 | `/api/send-sms` and `/api/send-email` open to anyone | Deleted; messages only from trusted server events | Locally tested |
+| 9 | P1 | Text.lk "error" responses with HTTP 200 counted as sent | Requires `status: "success"` | Locally tested |
+| 10 | P1 | Success page re-sent SMS/email on refresh and showed "Confirmed" without verification | Reads verified status only; notifications sent once | Locally tested |
+| 11 | P1 | Cancellation rules, admin decisions and refunds in the browser | Database functions + `refunds` table | Locally tested |
+| 12 | P1 | Next.js 16.2.11 with critical advisories | 16.3.8; `npm audit --omit=dev`: 0 | Verified |
+| 13 | P1 | `handle_new_user` SECURITY DEFINER without fixed search_path, executable by API roles | Pinned search_path, execute revoked | Locally tested |
+| 14 | P2 | Open redirect after login | Same-site paths only | Locally tested |
+| 15 | P2 | Device timezone used for 24-hour rule, recurring dates, court date default | Asia/Colombo in database and pages | Locally tested |
+| 16 | P2 | Zero-priced slots bookable; started slots bookable | Refused server-side; generator refuses missing prices | Locally tested |
+| 17 | P2 | "Peak/Off-peak" label shown though prices are flat | Removed | Browser-checked |
+| 18 | P2 | No security headers | HSTS, nosniff, frame-ancestors none, referrer and permissions policies | Build |
+| 19 | P3 | `slots.internal_reason` (company names) publicly readable | Not fixed (needs a public view) | Open |
+| 20 | P3 | Admin dashboard revenue counts unpaid test bookings | Removed by cleanup; daily report uses verified payments only | Open until cleanup |
+| 21 | P3 | 41 pre-existing UI lint errors (was 44) | Not addressed further | Open |
 
-Logs are structured JSON; keys that can contain OTPs, tokens, secrets, phones or
-emails are redacted. OTP values are never logged.
-
----
-
-## G. Daily report
-
-- **Endpoint:** `GET /api/cron/daily-report`, protected by `Authorization: Bearer $CRON_SECRET` (constant-time compare).
-- **Schedule:** Vercel Cron `0 17 * * *` UTC (on Hobby this fires 22:30–23:29 Colombo, always after the period closes). For exactly 22:00, enable `supabase/optional/daily_report_pg_cron.sql` (pg_cron at 16:30 UTC). Both can run: each day is sent once.
-- **Timezone:** Asia/Colombo. Report day D covers 22:00 on D-1 to 22:00 on D.
-- **Recipients:** `REPORT_RECIPIENTS` (your Gmail and the admin's Gmail).
-- **Subject:** `ArenaGrade Daily Operations Report — YYYY-MM-DD`.
-- **Contents:** action-required section first; verified live payments (gross, refunds completed, net), attempts by status, unreconciled payments, duplicate notifications, test/sandbox activity kept separate; bookings, holds, cancellations; refunds awaiting action; court operations; integrity checks (must be 0); SMS/email failures; unresolved incidents; admin actions. Explicitly says when nothing happened. No names, phones or emails.
-- **Duplicates:** `job_runs` claim per day (handles Vercel's duplicate or overlapping calls) + Resend `Idempotency-Key`.
-- **Delivery monitoring:** "accepted" means Resend accepted the message, not that it was delivered. Failures mark the job failed and send an SMS alert.
-- **Tested:** unauthorized calls rejected; repeated calls send once; forced rerun resends; Resend failure recorded, SMS alert sent, then recovered on rerun; totals deduplicated (unit + DB tests).
-- **Verify the first report:** set the env vars, deploy, then call `/api/cron/daily-report?period=<yesterday>` once with the secret (for example `curl -H "Authorization: Bearer $CRON_SECRET" https://arenagrade.lk/api/cron/daily-report?period=2026-10-18`) using a test inbox in `REPORT_RECIPIENTS`, and check the Vercel Cron Jobs page the next evening.
+Storage policies on the `images` bucket were verified correct and left unchanged.
 
 ---
 
-## H. QA evidence
+## 6. Test-data cleanup
+
+- **Status: script ready, NOT executed.** I have no database write access.
+- **Script:** `supabase/data/02_cleanup_test_bookings.sql`. It runs as one transaction and works on the listed 7 booking IDs only. It refuses to run if the count isn't exactly 7, if any booking isn't confirmed, or if any has a payment attempt or refund record. It backs up the affected rows to `cleanup_20261018_*` tables, resets a slot only when it is booked and has no other live booking, keeps blocked slots, and includes rollback steps.
+- **Locally tested:** a successful run, refusal on a wrong count, refusal when a real payment exists, and a run on the pre-migration schema.
+- **Needed:** the 7 IDs from `04_data_inventory.sql` (sent to you). Then you run it and send the final SELECT output.
+
+---
+
+## 7. Administrator-account verification
+
+`supabase/data/03_admin_accounts.sql` Part A (read-only) lists each `super_admin` with ID, masked email, created date, last sign-in and last profile change. A recent profile change on an account you don't recognise suggests self-promotion through finding 1.
+
+Part B is a guarded revocation:
+- It refuses if the two IDs are the same, if your own account isn't admin, or if no admin would remain.
+- Afterwards, sign the user out in Supabase Authentication.
+- Nothing is changed automatically.
+
+---
+
+## 8. St. Mary's Basketball Court: pricing and conflict rules
+
+- **Prices (per hour):** full court LKR 6,000; half court A or B LKR 3,000. A slot's price is the hourly price × slot length. If St. Mary's uses 2-hour slots, a full-court slot is LKR 12,000.
+- **Conflicts:**
+  - Full court conflicts with both halves.
+  - A half conflicts with the full court and with the same half.
+  - Half A and half B can be booked by different customers at the same time.
+  - Practice blocks and active holds also conflict.
+  - Partially overlapping slots and midnight-crossing slots are handled.
+- **Cut-off kept unchanged** (your earlier decision): half courts only when the slot starts before `half_court_cutoff` (default 2:00 PM); full court bookable all day.
+- **Open:** the slot length actually used for St. Mary's will be confirmed from the inventory. The setup script keeps the existing length.
+
+---
+
+## 9. The Solo Court
+
+- **Configuration** (set by `01_court_setup.sql` on the existing record; never creates a duplicate):
+  - Name "The Solo Court", active, no half courts.
+  - Open 5:00 AM–10:00 PM, 1-hour slots, up to 2 consecutive hours.
+  - LKR 2,500 per hour.
+- **Schedule:** exactly **17** one-hour slots per day (5–6 AM … 9–10 PM). Generation is idempotent: re-running adds only missing slots. Locally tested: 17 slots per day, 0 duplicates on re-run, LKR 2,500 each.
+- **Independence:** conflicts are scoped by court. St. Mary's cut-off never applies. Tested: a St. Mary's hold at 8 PM doesn't affect a Solo Court 8–10 PM hold.
+
+**Two-hour design.** Each hour stays one slot row, so the existing database constraint protects every physical hour. `hold_slots` holds 1–2 consecutive hours atomically, with **one shared 10-minute expiry**. A payment attempt covers all its hours, with the amount being the sum of their prices (LKR 5,000). On verified success, all hours are booked under **one booking**, linked through `booking_slots`. If any hour is no longer held by that customer, nothing is booked and the payment goes to refund.
+
+Releasing, expiring (including your existing `pg_cron` job, verified compatible) and cancelling always act on both hours together.
+
+**Locally tested:**
+- One-hour and two-hour bookings.
+- Non-consecutive selections, 3 hours, and 2 hours at St. Mary's are all rejected.
+- Partial availability leaves neither hour held.
+- A practice block inside the range blocks the reservation.
+- An admin cannot block an hour inside an active hold.
+- 25 rounds of simultaneous overlapping 9–11 vs 10–12 attempts: never both, and no leftover partial holds.
+- Late payment books nothing.
+- Losing one hour books nothing.
+- Paying the one-hour price for two hours is refused.
+- Cancellation releases both hours and refunds LKR 5,000.
+
+---
+
+## 10. PayHere integration and sandbox results
+
+- **Implemented:**
+  - Checkout hash and notification `md5sig` verification exactly as documented by PayHere, with a merchant-ID check and constant-time comparison.
+  - Server-side amount from slot prices.
+  - Order IDs bound to the exact hold.
+  - Idempotent processing, with duplicates counted rather than re-applied.
+  - Out-of-order events can't downgrade a success.
+  - Card details are never stored.
+  - The return page is never trusted.
+- **Late success** is recorded as `succeeded_unconfirmed`, with a pending refund row, an immediate SMS alert to the admin, and an SMS to the customer. A slot taken by another customer is never touched.
+- **Locally tested with mocks:** valid, forged, wrong merchant, tampered amount or currency, duplicate (6 at once), late, partially lost hold, malformed, failure→success, success→failure, chargeback, and a two-hour flow through the API.
+- **Sandbox: NOT run.** It needs your sandbox merchant ID and secret, the preview domain registered with PayHere, and a public preview URL. The checklist is in section 17.
+
+---
+
+## 11. SMS, OTP, Resend and the daily report
+
+- **OTP:**
+  - Server-generated, stored only as an HMAC, valid 10 minutes, 5 attempts.
+  - 60-second resend cooldown; at most 3 codes per number per 10 minutes, 6 per account per hour, 10 per network per hour; daily spend cap.
+  - One-time use, and bound to the user and phone.
+  - The response never contains the code (except in non-production test mode).
+- **SMS (Text.lk):** server-only. Every message is logged with a masked recipient and deduplicated by key. "Accepted" means Text.lk took the message, not that it was delivered.
+- **Email (Resend):** server-only, `Idempotency-Key` header, all user text HTML-escaped, no arbitrary recipients.
+- **Alerts:** critical events (late payment, unknown or tampered payment, chargeback, notification processing failure, report failure, OTP cap) go out by SMS to `CRITICAL_ALERT_PHONES`. Each type is throttled to one per hour, with timestamps and references and no OTPs or secrets.
+- **Daily report:** subject "ArenaGrade Daily Operations Report — YYYY-MM-DD". Each report covers 10 PM to 10 PM Asia/Colombo. Contents:
+  - Action items first.
+  - Verified live payments: gross, refunds and net.
+  - **Bookings by court and duration.**
+  - Holds and cancellations.
+  - Refunds awaiting action.
+  - Integrity checks.
+  - SMS/email failures and incidents.
+  - Admin actions.
+- **Report reliability:**
+  - Each day is claimed once, so duplicate or overlapping runs send nothing extra.
+  - A missed day is caught up on the next run.
+  - A failure triggers an SMS alert.
+- **Scheduling on Vercel Hobby:** the cron is `0 17 * * *` UTC, which fires at some point between **10:30 and 11:29 PM** Colombo time. Exact-minute timing is not possible on Hobby.
+- **Exact 10:00 PM option:** `supabase/optional/daily_report_pg_cron.sql`. **pg_cron is installed; pg_net is NOT installed** (verified from your extensions list). Enable pg_net and add the Vault secret first.
+- **Status:** locally tested with mocked providers. Not yet sent to a real inbox. Test with a designated inbox first (`REPORT_RECIPIENTS`).
+
+---
+
+## 12. UI/UX changes and responsive and accessibility results
+
+**Changes:**
+- Court cards show real hourly prices, opening hours and what can be booked.
+- The court page explains prices and half-court rules in plain English and shows times in 12-hour Sri Lanka time.
+- The misleading Peak/Off-peak label is removed.
+- **The Solo Court has a 1-hour / 2-hour selector.** Start times are offered only when the following hour is also free, with a reason shown otherwise. A summary bar fixed to the bottom shows the exact range and total (for example "8:00 AM – 10:00 AM · 2 hours · LKR 5,000").
+- Booking, payment, success and My Bookings pages show the full range for two-hour bookings.
+- The success page never says "Confirmed" before PayHere's verified notification.
+- Honest refund wording: approval creates a pending bank-transfer refund.
+- Clear "Not available" labels replace "N/A".
+- Admin:
+  - Server-side slot generation, safe to re-run, with clear messages.
+  - "Longest booking" setting per court.
+  - "Price per hour" stated on the pricing form.
+  - Refund actions require a bank reference.
+- Design tokens; skip link; visible keyboard focus; 44px tap targets; reduced-motion support; no sideways scrolling; labelled date picker; screen-reader labels on slot buttons; live region for the selection summary.
+
+**Browser-verified** (headless Chromium, built app, test data for both courts):
+
+| View | Width | Horizontal overflow | axe-core WCAG 2.0–2.2 A/AA violations |
+|---|---|---|---|
+| Home | 1280 / 390 | 0 / 0 | 0 / 0 (7 contrast failures fixed) |
+| St. Mary's | 1280 / 390 | 0 / 0 | 0 / 0 (6 fixed) |
+| The Solo Court, 2-hour selected | 390 | 0 | 0 |
+| The Solo Court, 1-hour | 1280 | 0 | 0 |
+
+Visual review of the screenshots led to two further fixes: the summary bar no longer covers start times, and St. Mary's options fit one row on phones, making that page about 23% shorter.
+
+**Not browser-tested:** pages that need a signed-in session (booking, OTP, payment, success, My Bookings, admin) were type-checked and built, but not rendered. Automated checks don't replace a manual screen-reader pass.
+
+---
+
+## 13. Tests actually executed
 
 | Command | Result |
 |---|---|
-| `npm run typecheck` | pass |
-| `npm run build` (predeploy guard + `next build`) | pass |
-| `npm run test` | **136 passed, 0 failed, 0 skipped** (7 files, ~12 s) |
-| `PGTEST_MUTATION=naive_hold npm run test:db -- tests/db/booking-integrity.test.ts` | 13 failed (expected — proves the tests catch double booking) |
+| `npm run typecheck` | Pass |
+| `npm run test` | **165 passed, 0 failed, 0 skipped** (9 files) |
+| Mutation run: `PGTEST_MUTATION=naive_hold npm run test:db -- tests/db/booking-integrity.test.ts` | 13 failed, as expected; proves the tests detect double booking |
+| `npm run build` (build guard + Next.js 16.3.8) | Pass |
 | `npm audit --omit=dev` | 0 vulnerabilities |
-| `npx eslint .` | 44 errors, 20 warnings (pre-existing; unchanged per file) |
+| `npx eslint .` | 41 errors, 22 warnings, all in pre-existing UI code (baseline 44) |
+| Browser audit (Chromium 153, axe-core) | 6 views: 0 violations, 0 overflow |
+| Client bundle scan | No secrets or server-only functions |
 
-The database tests start a real PostgreSQL 17 (`embedded-postgres`) with a
-Supabase-like shim (roles, `auth.uid()`, default grants). Route tests call the
-real route handlers against the real SQL functions; Text.lk and Resend are
-mocked at `fetch`.
-
-**Not tested:** browser end-to-end (no Playwright yet — UI changes are covered
-by type-check, build and the manual checklist in K), PayHere sandbox, real
-Text.lk/Resend delivery, real Supabase RLS/Auth, Vercel cron delivery, mobile
-layout, accessibility, performance.
-
----
-
-## I. Files changed
-
-**Database (new):** `supabase/migrations/20261018000100…0700_*.sql` (7 files),
-`supabase/optional/daily_report_pg_cron.sql`, `supabase/discovery/*`.
-
-**Server (new):** `app/api/otp/{send,verify}`, `app/api/payments/{initiate,payhere/notify,simulate}`,
-`app/api/bookings/[id]/cancel`, `app/api/admin/bookings/[id]/decision`, `app/api/admin/refunds/[id]`,
-`app/api/cron/daily-report`, `app/api/health`; `lib/server/{env,db,http,log,otp,payhere,payments,alerts,reportPeriod}.ts`,
-`lib/server/notify/{sms,email,templates}.ts`.
-
-**Shared/browser (new):** `lib/apiClient.ts`, `lib/userMessages.ts`, `lib/phone.ts`, `lib/safeRedirect.ts`.
-
-**Removed:** `app/api/send-sms`, `app/api/send-email`, `lib/sms.ts`, `lib/email.ts`, `lib/rateLimitHelper.ts`.
-
-**Modified pages:** booking, verify, payment, payment success, my-bookings,
-court detail, auth, auth callback, admin bookings, admin slots, admin recurring,
-privacy (Text.lk wording).
-
-**Config:** `next.config.ts` (headers), `vercel.json` (cron), `package.json`
-(Next 16.3.8, scripts, test deps), `scripts/predeploy-check.mjs`, `.env.example`,
-`.gitignore`, `vitest.config.ts`.
-
-**Tests:** `tests/unit/*`, `tests/db/*`, `tests/api/*`, `supabase/tests/fixtures/*`.
-
-**Environment variables:** see `.env.example`. New required in production:
-`APP_BASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OTP_HASH_SECRET`, `CRON_SECRET`,
-`TEXT_LK_API_KEY`, `PAYHERE_MERCHANT_ID`, `PAYHERE_MERCHANT_SECRET`,
-`PAYHERE_MODE=live`, `RESEND_API_KEY`, `REPORT_RECIPIENTS`, `ADMIN_ALERT_PHONE`,
-`REFUND_WHATSAPP_NUMBER`, `CRITICAL_ALERT_PHONES`.
+Coverage includes:
+- Security: role escalation, direct slot and booking writes, arbitrary prices, OTP bypass and replay, unauthorised SMS/email, RLS, admin permissions, open redirect, function privileges.
+- Booking: the St. Mary's conflict matrix, Solo Court 1h/2h, partial availability, concurrency, expiry, blocks, recurring generation, idempotent generation.
+- Payments: valid, invalid, amount/currency, duplicates, late, reallocated slot.
+- Pricing: 6,000, 3,000, 2,500, 5,000; the 17-slot day.
+- Cancellation, the daily report, and the data scripts.
 
 ---
 
-## J. Manual actions required from you
+## 14. Outstanding issues and external dependencies
 
-1. **Now:** keep online booking unavailable on the live site until this branch is deployed (the old simulate button is live).
-2. **Check the 3 `super_admin` accounts are all yours** — any customer could have promoted themselves through the role hole. Demote anything unexpected.
-3. **Decide about the 7 existing confirmed bookings.** `payment_audit` has 0 rows (the old code's audit insert was silently blocked), so none has a recorded online payment — they came from the simulate button.
-3a. Resolve the one existing clash: a **blocked** slot overlapping a **booked** one (slots `28e73225-2746-44a5-a23b-9b103614545e` / `40c2fb9f-4354-4376-a7b3-a09f906f0f76`).
-3b. Commit a `supabase db dump --schema-only` so the schema lives in Git.
-4. Create a staging Supabase project (or branch), load the schema, apply `supabase/migrations` in order, run `02_integrity_checks.sql`.
-5. Confirm the Supabase plan's backups/PITR, and take a manual backup before the production migration.
-6. Vercel: set the environment variables (Production and Preview separately; sandbox PayHere in Preview only).
-7. PayHere: complete merchant registration; sandbox credentials first; register the domains.
-8. Text.lk: approve the "ArenaGrade" sender ID (needs the BR number); top up balance.
-9. Resend: create the account, verify `arenagrade.lk` for sending, set `EMAIL_FROM`.
-10. Optional: enable **pg_net** (pg_cron is already installed) and the Vault secret for an exact-22:00 report.
-11. Add an external uptime monitor on `https://arenagrade.lk/api/health` (for example UptimeRobot, free).
-12. Enable Vercel deployment-failure notifications.
-13. Review: one phone number may currently verify several accounts — allow or restrict?
-14. Approve purging plaintext codes in the legacy `otp_verifications` table.
-15. Install the Claude GitHub App on your account (GitHub is linked, but pushes are refused without the app), or push the patch yourself.
+- Migrations and scripts not applied to staging or production.
+- Inventory results pending: court IDs, St. Mary's slot length, the 7 booking IDs, admin accounts, and the overlap records.
+- **Reported overlap** (`28e73225…` blocked vs `40c2fb9f…` booked): pending the inventory. A block on the full court at the same time as a booked half is a real clash. Decide which applies before changing anything, and the cleanup may resolve it if the booking is one of your tests.
+- PayHere merchant approval and sandbox credentials.
+- Text.lk "ArenaGrade" sender ID approval and account balance.
+- Resend account and domain verification.
+- pg_net, if you want the exact 10 PM report.
+- Claude GitHub App installation, if you want me to push.
+- An external uptime monitor and Vercel deploy-failure notifications.
+- Signed-in page rendering and a manual accessibility pass.
 
 ---
 
-## K. Go-live checklist
+## 15. Manual actions required from you
 
-**Security**
-- [ ] Migration 0700 reviewed against the discovery policies, applied
-- [ ] `select has_function_privilege('anon', oid, 'execute')` check from `tests/db/rls.test.ts` returns nothing on production
-- [ ] Build log shows `[predeploy-check] OK (production)` with no simulation/test-mode
-- [ ] `/api/send-sms` and `/api/send-email` return 404 on production
+1. Approve and apply the temporary booking shutdown (section 1).
+2. Run `supabase/discovery/04_data_inventory.sql` and send the JSON.
+3. Check the `super_admin` accounts (section 7).
+4. Confirm St. Mary's slot length (1 or 2 hours) if the inventory is ambiguous.
+5. Install the Claude GitHub App, or apply the patch yourself.
+6. Create a staging Supabase project (or branch) and confirm backups/PITR on production.
+7. Set Vercel environment variables (`.env.example`), keeping Preview (sandbox) and Production separate.
+8. Get PayHere sandbox credentials and register the preview and live domains.
+9. Text.lk: approve the sender ID and top up the balance. Resend: create the account and verify the domain.
+10. Choose the report test inbox, then the real recipients.
+11. Optional: enable pg_net and add the Vault secret for the exact 10 PM report.
 
-**Booking concurrency**
-- [ ] Constraint `slots_no_conflicting_active` present (`\d public.slots`)
-- [ ] Two phones try the same slot at once → one gets "just reserved"
+---
 
-**Payment verification**
-- [ ] Sandbox checklist (E) passed on Preview
-- [ ] Production: one real low-value payment end-to-end, then refund it
+## 16. Backup and rollback
 
-**SMS and OTP**
-- [ ] OTP arrives with the approved sender ID; wrong code ×5 locks; resend cooldown works
+- **Before anything:**
+  - Confirm Supabase backups for your plan (Dashboard → Database → Backups).
+  - Take a manual backup: `pg_dump` of the database, or a schema-only plus data export.
+  - Save the discovery JSON, which you already have.
+- **Apply the patch yourself:**
+  ```
+  git fetch origin && git checkout -b security/production-readiness origin/main
+  git am arenagrade-production-readiness.patch
+  git push -u origin security/production-readiness
+  ```
+  Do not merge to `main` until staging passes. Vercel deploys `main` to production.
+- **Code rollback:** Vercel Instant Rollback.
+- **Database rollback:** see section 4 (policy rollback reintroduces the vulnerabilities). Data scripts: cleanup backup tables plus the documented rollback; court prices restored from the inventory values.
+- **Restore rehearsal:** never against production. Restore into a fresh test project.
 
-**Email and daily reports**
-- [ ] First report received at the test inbox, then switch to real recipients
+---
 
-**Database constraints**
-- [ ] `02_integrity_checks.sql` shows 0 active overlaps before and after migration
+## 17. Prioritised launch checklist (1 November 2026)
 
-**Monitoring**
-- [ ] Critical alert SMS reaches the alert phone (trigger with a forced report failure on Preview)
-- [ ] Uptime monitor on `/api/health`
+**By 20 Oct — P0**
+- [ ] Booking temporarily disabled on the live site
+- [ ] Inventory sent; admin accounts verified
+- [ ] Branch pushed; staging project created; backups confirmed
 
-**Backups**
-- [ ] Backup confirmed and a restore rehearsed into a test project (never into production)
+**By 24 Oct — P0 on staging**
+- [ ] Migrations 1–8 applied to staging without errors
+- [ ] Attack checks fail on staging: role change, slot update, booking insert, phone self-verify
+- [ ] Cleanup + court setup scripts run on staging; 17 Solo slots per day; prices 6,000 / 3,000 / 2,500
+- [ ] Preview deployment on staging with `PAYMENT_SIMULATION=enabled`: full flows for St. Mary's (full + half) and The Solo Court (1h + 2h)
 
-**Deployment**
-- [ ] Deploy in a quiet hour; smoke test booking, OTP, payment, cancellation, admin
-- [ ] Know the rollback: Vercel instant rollback for code; migrations are additive except the policy replacement (keep the discovery output to restore old policies)
+**By 28 Oct — P1**
+- [ ] PayHere sandbox checklist: success, failure, cancel, invalid signature, duplicate, late (after 10 min), repeated Pay, browser closed after paying
+- [ ] OTP with real Text.lk: delivery, wrong code ×5 lock, resend cooldown
+- [ ] Daily report to the test inbox; forced failure triggers the SMS alert
+- [ ] Two phones racing the same slot: one gets "just reserved"
 
-**Post-launch observation (first 2 weeks)**
-- [ ] Read every daily report; zero integrity issues; zero paid-unconfirmed left unresolved
-- [ ] Check PayHere settlements against the report's verified payment totals weekly
+**29–30 Oct — Production**
+- [ ] Manual backup taken
+- [ ] Migrations applied → data scripts run → verification SELECTs reviewed
+- [ ] Production env vars set (`PAYHERE_MODE=live`, no simulation or test mode); build log shows `[predeploy-check] OK (production)`
+- [ ] Merge and deploy; `/api/send-sms` and `/api/send-email` return 404; `/api/health` OK
+- [ ] One real low-value booking end to end, then refunded
+
+**31 Oct**
+- [ ] Courts re-activated; uptime monitor on; real report recipients set
+
+**After launch (2 weeks)**
+- [ ] Read every daily report: integrity counts 0, no unresolved paid-but-unconfirmed payments
+- [ ] Weekly: PayHere settlements match the report's verified totals
