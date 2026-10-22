@@ -33,7 +33,17 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Tests (unit, database on a local PostgreSQL 17, API)
+      # Real PostgREST (Supabase's API layer) so embedded selects are checked
+      # exactly as the browser sends them (tests/api/postgrest-embeds.test.ts).
+      - name: Download PostgREST
+        run: |
+          curl -sSL -o /tmp/postgrest.tar.xz https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz
+          tar -xf /tmp/postgrest.tar.xz -C /tmp
+          /tmp/postgrest --version
+
+      - name: Tests (unit, database on a local PostgreSQL 17, API, PostgREST)
+        env:
+          POSTGREST_BIN: /tmp/postgrest
         run: npx vitest run
 
       - name: Production dependency audit
