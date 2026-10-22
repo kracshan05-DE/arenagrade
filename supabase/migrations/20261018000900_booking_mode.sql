@@ -10,6 +10,15 @@
 -- manual test confirmations) are allowed ONLY for super_admins, in every mode:
 -- sandbox credentials left in production can never give customers free bookings.
 
+-- RE-RUN GUARD (added 2026-10-22, audit C3): re-running 0900 after 1000 would
+-- undo 1000's change to admin_confirm_test_booking.
+do $guard$
+begin
+  if to_regclass('public.full_court_only_dates') is not null then
+    raise exception 'Migration 0900 must not be re-run after 1000: it would undo later changes. Nothing was changed.';
+  end if;
+end $guard$;
+
 create table if not exists public.app_settings (
   key text primary key,
   value text not null,

@@ -133,3 +133,13 @@ describe('OTP primitives', () => {
     expect(hashOtp('other', 'user-a', '0771234567', '123456')).not.toBe(h)
   })
 })
+
+describe('isWeekend (full-court-only display rule)', () => {
+  it('treats Saturday and Sunday calendar dates as weekend, regardless of the device timezone', async () => {
+    const { isWeekend } = await import('@/lib/courtInfo')
+    expect(isWeekend('2026-10-24')).toBe(true)  // Saturday
+    expect(isWeekend('2026-10-25')).toBe(true)  // Sunday
+    expect(isWeekend('2026-10-23')).toBe(false) // Friday
+    expect(isWeekend('2026-10-26')).toBe(false) // Monday
+  })
+})
