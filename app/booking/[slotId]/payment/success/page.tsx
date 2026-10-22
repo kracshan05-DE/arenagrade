@@ -41,10 +41,13 @@ export default function SuccessPage() {
     const loadBooking = async (userId: string) => {
       let q = supabase
         .from('bookings')
-        .select('id, total_lkr, payhere_payment_id, idempotency_key, slots(slot_date, start_time, end_time, court_type), booking_slots(slots(start_time, end_time)), courts(name, locations(name, address))')
+        .select('id, total_lkr, payhere_payment_id, idempotency_key, slots!slot_id(slot_date, start_time, end_time, court_type), booking_slots(slots(start_time, end_time)), courts!court_id(name, locations(name, address))')
         .eq('slot_id', slotId).eq('user_id', userId).in('status', ['confirmed', 'cancellation_requested'])
       if (order) q = q.eq('idempotency_key', order)
-      const { data } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle()
+      // bookings <-> slots has two relationships (slot_id and booking_slots), so
+      // the embeds name their foreign key; an error here must not look like "no booking yet".
+      const { data, error } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle()
+      if (error) console.error('success page booking query failed', error.code, error.message)
       return data as unknown as Booking | null
     }
 
