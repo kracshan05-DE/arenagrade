@@ -375,7 +375,8 @@ Coverage includes:
 **1 Nov — launch (after PayHere live approval)**
 - [ ] Admin dashboard: set booking to **Paused**
 - [ ] Run `04_purge_test_bookings.sql`; check `test_bookings_remaining = 0`
-- [ ] Vercel: live PayHere credentials, `PAYHERE_MODE=live`; redeploy
+- [ ] PayHere live account: register the domain `www.arenagrade.lk` (the primary domain; `arenagrade.lk` redirects, and PayHere does not follow redirects)
+- [ ] Vercel: live PayHere credentials, `PAYHERE_MODE=live`; redeploy; `APP_BASE_URL` stays `https://www.arenagrade.lk`
 - [ ] One real low-value booking by an admin, then refunded (needs your approval)
 - [ ] Set booking to **Open to everyone**; uptime monitor on; real report recipients set
 
