@@ -8,8 +8,18 @@ import { TestDb, colomboDate } from './helpers'
 
 const cleanupSql = readFileSync(join(__dirname, '..', '..', 'supabase', 'data', '02_cleanup_test_bookings.sql'), 'utf8')
 // The script ships with the 7 real IDs; tests swap in their own test IDs.
-const withIds = (ids: string[]) => cleanupSql.replace(
-  /insert into cleanup_target \(booking_id\) values[\s\S]*?\);[^\n]*\n/, `insert into cleanup_target (booking_id) values ${ids.map((i) => `('${i}')`).join(', ')};\n`)
+const withIds = (ids: string[]) => {
+  const out = cleanupSql.replace(/v_ids constant uuid\[\] := array\[[\s\S]*?\]::uuid\[\];/,
+    `v_ids constant uuid[] := array[${ids.map((i) => `'${i}'`).join(', ')}]::uuid[];`)
+  if (out === cleanupSql) throw new Error('ID list not found in 02_cleanup_test_bookings.sql')
+  return out
+}
+
+// The Supabase SQL Editor may run each statement of a script on a different
+// database session. Splitting the script at its top-level statements and
+// running each on a fresh connection reproduces that.
+const statements = (sql: string) => sql.split(/^end \$\$;$/m).flatMap((part, i, all) =>
+  i < all.length - 1 ? [part + 'end $$;'] : [part]).filter((x) => x.replace(/--.*$/gm, '').trim())
 
 let db: TestDb
 beforeEach(async () => { db = await TestDb.create() })
@@ -48,7 +58,7 @@ describe('02_cleanup_test_bookings.sql', () => {
     const owner = await db.user()
     const tests = []
     for (let h = 6; h < 12; h++) tests.push(await oldStyleBooking(court, h, owner)) // only 6
-    await expect(db.su.query(withIds(tests.map((t) => t.id)))).rejects.toThrow(/Expected 7/)
+    await expect(db.su.query(withIds(tests.map((t) => t.id)))).rejects.toThrow(/exactly 7|Expected 7/)
     await db.su.query('rollback').catch(() => {})
     expect((await db.su.query(`select count(*)::int n from public.bookings`)).rows[0].n).toBe(6)
   })
@@ -156,5 +166,51 @@ describe('02_cleanup_test_bookings.sql exactly as shipped (real IDs)', () => {
     expect((await db.su.query(`select count(*)::int n from public.bookings`)).rows[0].n).toBe(0)
     expect((await db.su.query(`select count(*)::int n from public.slots where status = 'booked'`)).rows[0].n).toBe(0)
     expect((await db.slotRow(block)).status).toBe('blocked')
+  })
+})
+
+describe('owner scripts survive the Supabase SQL Editor (one session per statement)', () => {
+  it('neither script relies on temporary tables or an open transaction', () => {
+    for (const f of ['02_cleanup_test_bookings.sql', '04_purge_test_bookings.sql']) {
+      const sql = readFileSync(join(__dirname, '..', '..', 'supabase', 'data', f), 'utf8').replace(/--.*$/gm, '')
+      expect(sql, f).not.toMatch(/temp(orary)? table/i)
+      expect(sql, f).not.toMatch(/^\s*(begin|commit)\s*;/im)
+    }
+  })
+
+  it('02 cleanup works when every statement runs on its own connection', async () => {
+    const court = await db.court()
+    const owner = await db.user()
+    const tests = [] as { id: string; slot: string }[]
+    for (let h = 6; h < 13; h++) tests.push(await oldStyleBooking(court, h, owner))
+    const parts = statements(withIds(tests.map((t) => t.id)))
+    expect(parts.length).toBe(2)
+    for (const part of parts) {
+      const c = await db.client()
+      try { await c.query(part) } finally { await c.end() }
+    }
+    expect((await db.su.query(`select count(*)::int n from public.bookings`)).rows[0].n).toBe(0)
+    expect((await db.su.query(`select count(*)::int n from public.cleanup_20261018_bookings`)).rows[0].n).toBe(7)
+  })
+
+  it('02 cleanup run twice: the second run is refused and changes nothing', async () => {
+    const court = await db.court()
+    const owner = await db.user()
+    const tests = [] as { id: string; slot: string }[]
+    for (let h = 6; h < 13; h++) tests.push(await oldStyleBooking(court, h, owner))
+    await db.su.query(withIds(tests.map((t) => t.id)))
+    await expect(db.su.query(withIds(tests.map((t) => t.id)))).rejects.toThrow(/already cleaned up/)
+    expect((await db.su.query(`select count(*)::int n from public.cleanup_20261018_bookings`)).rows[0].n).toBe(7)
+  })
+
+  it('a failed check leaves no trace (no backup tables, nothing deleted)', async () => {
+    const court = await db.court()
+    const owner = await db.user()
+    const tests = [] as { id: string; slot: string }[]
+    for (let h = 6; h < 12; h++) tests.push(await oldStyleBooking(court, h, owner))
+    await expect(db.su.query(withIds([...tests.map((t) => t.id), '00000000-0000-4000-8000-000000000000'])))
+      .rejects.toThrow(/Nothing changed/)
+    expect((await db.su.query(`select count(*)::int n from public.bookings`)).rows[0].n).toBe(6)
+    expect((await db.su.query(`select to_regclass('public.cleanup_20261018_bookings') t`)).rows[0].t).toBeNull()
   })
 })

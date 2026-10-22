@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { rpcErrorCode } from '@/lib/apiClient'
 import { userMessage } from '@/lib/userMessages'
+import { isWeekend } from '@/lib/courtInfo'
 
 interface Court {
   id: string; name: string; has_half_court: boolean
   half_court_cutoff: string; operating_start: string
   operating_end: string; slot_duration_hrs: number
+  weekend_full_court_only?: boolean | null
 }
 
 interface Slot {
@@ -52,6 +54,10 @@ export default function AdminSlots() {
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkDays, setBulkDays] = useState(30)
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, skipped: 0, generated: 0 })
+  // Holiday marked "full court only" for the selected court and date (null = not marked).
+  const [holiday, setHoliday] = useState<{ reason: string | null } | null>(null)
+  const [holidayReason, setHolidayReason] = useState('')
+  const [holidayBusy, setHolidayBusy] = useState(false)
 
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' })
   const maxDate = new Date()
@@ -73,12 +79,12 @@ export default function AdminSlots() {
 
   const loadSlots = async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('slots').select('*')
-      .eq('court_id', selectedCourt)
-      .eq('slot_date', selectedDate)
-      .order('start_time')
+    const [{ data }, { data: fullOnly }] = await Promise.all([
+      supabase.from('slots').select('*').eq('court_id', selectedCourt).eq('slot_date', selectedDate).order('start_time'),
+      supabase.from('full_court_only_dates').select('reason').eq('court_id', selectedCourt).eq('day', selectedDate).maybeSingle(),
+    ])
     if (data) setSlots(data)
+    setHoliday(fullOnly ? { reason: fullOnly.reason } : null)
     setLoading(false)
   }
 
@@ -135,6 +141,36 @@ export default function AdminSlots() {
     setBulkGenerating(false)
     setShowBulkModal(false)
     await loadSlots()
+  }
+
+  // Full court only days: weekends (court setting) are automatic; holidays are
+  // marked here. The database deletes unused half slots when a date is marked,
+  // recreates them when it is unmarked, and refuses if a half court is booked.
+  const weekendRule = !!court?.has_half_court && !!court?.weekend_full_court_only && isWeekend(selectedDate)
+  const setFullCourtOnly = async (on: boolean) => {
+    if (!court) return
+    const label = new Date(`${selectedDate}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+    if (!confirm(on
+      ? `Make ${label} full court only? Unbooked half-court slots for this date will be removed.`
+      : `Allow half courts again on ${label}? Half-court slots will be recreated.`)) return
+    setHolidayBusy(true)
+    setMessage('')
+    const { data, error } = await supabase.rpc('admin_set_full_court_only_day', {
+      p_court_id: selectedCourt, p_day: selectedDate, p_full_court_only: on, p_reason: on ? holidayReason : null,
+    })
+    if (error) {
+      setMessage(userMessage(rpcErrorCode(error)))
+    } else {
+      const r = data as { half_slots_deleted: number; half_slots_created: number; weekend_rule: boolean }
+      setMessage(on
+        ? `${label} is now full court only. ${r.half_slots_deleted} unbooked half-court slots removed.`
+        : r.weekend_rule
+          ? `Holiday removed. ${label} is a weekend, so it stays full court only.`
+          : `Half courts allowed again on ${label}. ${r.half_slots_created} half-court slots created.`)
+      setHolidayReason('')
+    }
+    await loadSlots()
+    setHolidayBusy(false)
   }
 
   const blockSlot = async (slotId: string) => {
@@ -398,7 +434,40 @@ export default function AdminSlots() {
         <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '12px', color: '#64748B' }}>🕐 <strong>{court.operating_start.slice(0,5)} - {court.operating_end.slice(0,5)}</strong></span>
           <span style={{ fontSize: '12px', color: '#64748B' }}>⏱ <strong>{court.slot_duration_hrs}h slots</strong></span>
-          {court.has_half_court && <span style={{ fontSize: '12px', color: '#1D4ED8' }}>🏀 Half court before <strong>{court.half_court_cutoff?.slice(0,5)}</strong></span>}
+          {court.has_half_court && <span style={{ fontSize: '12px', color: '#1D4ED8' }}>🏀 Half court before <strong>{court.half_court_cutoff?.slice(0,5)}</strong>{court.weekend_full_court_only ? ' on weekdays' : ''}</span>}
+        </div>
+      )}
+
+      {/* Full court only (weekends automatic, holidays marked here) */}
+      {court?.has_half_court && (
+        <div style={{ background: '#fff', border: '0.5px solid #E2E8F0', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 260px' }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#0F172A', margin: '0 0 2px' }}>
+              {weekendRule ? 'Weekend: full court only' : holiday ? `Full court only${holiday.reason ? ` (${holiday.reason})` : ''}` : 'Half courts offered on this date'}
+            </p>
+            <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>
+              {weekendRule
+                ? 'Saturdays and Sundays never offer half courts.'
+                : 'Mark Poya days and other holidays as full court only.'}
+            </p>
+          </div>
+          {!weekendRule && !holiday && (
+            <>
+              <input type="text" value={holidayReason} onChange={(e) => setHolidayReason(e.target.value)} maxLength={100}
+                placeholder="Reason (optional), e.g. Poya" aria-label="Reason for full court only"
+                style={{ border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', minWidth: '180px' }} />
+              <button onClick={() => setFullCourtOnly(true)} disabled={holidayBusy}
+                style={{ background: '#0B2818', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 14px', fontSize: '13px', fontWeight: 600, cursor: holidayBusy ? 'wait' : 'pointer' }}>
+                Make full court only
+              </button>
+            </>
+          )}
+          {holiday && (
+            <button onClick={() => setFullCourtOnly(false)} disabled={holidayBusy}
+              style={{ background: '#ECFDF5', color: '#065F46', border: '0.5px solid #6EE7B7', borderRadius: '8px', padding: '9px 14px', fontSize: '13px', fontWeight: 600, cursor: holidayBusy ? 'wait' : 'pointer' }}>
+              Allow half courts again
+            </button>
+          )}
         </div>
       )}
 

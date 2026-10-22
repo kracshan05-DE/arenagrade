@@ -1,3 +1,11 @@
+-- RE-RUN GUARD (added 2026-10-22, audit C3): Migration 0800 must not be re-run after 0900: it would replace hold_slots and payment_create_attempt and remove the booking-mode checks.
+do $guard$
+begin
+  if to_regprocedure('public._hold_slots_core(uuid[])') is not null then
+    raise exception 'Migration 0800 must not be re-run after 0900: it would replace hold_slots and payment_create_attempt and remove the booking-mode checks. Nothing was changed.';
+  end if;
+end $guard$;
+
 -- ArenaGrade: multi-hour reservations (The Solo Court), court configuration,
 -- hourly pricing and idempotent slot generation.
 --

@@ -38,9 +38,9 @@ describe('customers cannot write booking state directly', () => {
 
   it('cannot lock, book or release slots by updating the table', async () => {
     const s = await db.slot(court, colomboDate(6), '09:00', '10:00', 'full_court')
-    const rows = await db.as('authenticated', other,
-      `update public.slots set status = 'booked' where id = $1 returning id`, [s])
-    expect(rows).toHaveLength(0)
+    // Since migration 1000 no browser role (not even an admin) may UPDATE slots directly.
+    await expect(db.as('authenticated', other,
+      `update public.slots set status = 'booked' where id = $1 returning id`, [s])).rejects.toThrow(/permission denied/)
     await expect(db.as('anon', null, `update public.slots set status = 'booked' where id = $1`, [s])).rejects.toThrow(/permission denied/)
     expect((await db.slotRow(s)).status).toBe('available')
   })
@@ -88,7 +88,7 @@ describe('admin-only management', () => {
     await expect(db.as('authenticated', other, `insert into public.court_portfolio (title) values ('x')`)).rejects.toThrow(/row-level security/)
     await expect(db.as('authenticated', other, `insert into public.court_pricing (court_id, price_lkr) values ($1, 1)`, [court])).rejects.toThrow(/row-level security/)
     await expect(db.as('authenticated', other, `insert into public.slots (court_id, slot_date, start_time, end_time, court_type) values ($1, $2, '09:00', '10:00', 'full_court')`, [court, colomboDate(9)]))
-      .rejects.toThrow(/row-level security/)
+      .rejects.toThrow(/permission denied/)
     expect(await db.as('authenticated', other, `select id from public.recurring_bookings`)).toHaveLength(0)
   })
 
@@ -126,7 +126,7 @@ describe('function privileges', () => {
       order by 1`)
     expect(r.rows.map((x) => x.proname)).toEqual([
       'admin_block_slot', 'admin_confirm_test_booking', 'admin_decide_cancellation', 'admin_generate_court_slots',
-      'admin_generate_recurring_slots', 'admin_set_booking_mode', 'admin_unblock_slot', 'admin_update_refund', 'hold_slot', 'hold_slots', 'is_super_admin', 'release_hold',
+      'admin_generate_recurring_slots', 'admin_set_booking_mode', 'admin_set_full_court_only_day', 'admin_unblock_slot', 'admin_update_refund', 'hold_slot', 'hold_slots', 'is_super_admin', 'release_hold',
       'request_booking_cancellation',
     ])
   })

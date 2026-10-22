@@ -1,0 +1,52 @@
+# Runs on every pull request and every push to main. Make the "checks" job a
+# required status check for main (GitHub -> Settings -> Branches) so nothing
+# reaches production (Vercel deploys main) without passing it.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Tests (unit, database on a local PostgreSQL 17, API)
+        run: npx vitest run
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build
+        env:
+          # Placeholders only: the build needs the public variables to exist.
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+        run: npm run build
+
+      # 41 lint errors pre-date this workflow (old UI files); reported, not blocking yet.
+      - name: Lint (informational)
+        continue-on-error: true
+        run: npx eslint .

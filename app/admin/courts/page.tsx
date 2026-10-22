@@ -20,6 +20,7 @@ interface Court {
   operating_end: string
   slot_duration_hrs: number
   max_consecutive_slots?: number | null
+  weekend_full_court_only?: boolean | null
   is_active: boolean
   locations: { name: string }
   sport_types: { name: string }
@@ -106,6 +107,7 @@ export default function AdminCourts() {
         operating_end: formatTime(editingCourt.operating_end?.slice(0,5) || '22:00'),
         slot_duration_hrs: parseInt(String(editingCourt.slot_duration_hrs)),
         max_consecutive_slots: Math.min(4, Math.max(1, parseInt(String(editingCourt.max_consecutive_slots ?? 1)) || 1)),
+        weekend_full_court_only: !!editingCourt.has_half_court && !!editingCourt.weekend_full_court_only,
         is_active: editingCourt.is_active,
       })
       .eq('id', editingCourt.id)
@@ -329,6 +331,15 @@ export default function AdminCourts() {
                         <input type="time" value={editingCourt.half_court_cutoff?.slice(0,5)}
                           onChange={e => setEditingCourt({...editingCourt, half_court_cutoff: e.target.value})}
                           style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '10px' }}>
+                          <input type="checkbox" checked={!!editingCourt.weekend_full_court_only}
+                            onChange={e => setEditingCourt({...editingCourt, weekend_full_court_only: e.target.checked})}
+                            id={`wk_${court.id}`} style={{ marginTop: '3px' }} />
+                          <label htmlFor={`wk_${court.id}`} style={{ fontSize: '13px', color: '#0F172A', cursor: 'pointer' }}>
+                            Full court only on Saturdays and Sundays
+                            <span style={{ display: 'block', fontSize: '12px', color: '#64748B' }}>Half courts can never be booked on weekends. If you turn this off, generate slots again to add weekend half courts.</span>
+                          </label>
+                        </div>
                       </div>
                     )}
                     <div>

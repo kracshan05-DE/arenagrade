@@ -41,7 +41,12 @@ const MESSAGES: Record<string, string> = {
   too_many_consecutive_slots: 'That is longer than this court allows in one booking.',
   invalid_selection: 'Please choose the time again.',
   pricing_missing: 'Prices are not set for this court yet.',
-  server_error:'Something went wrong on our side. Please try again.',
+  half_court_not_offered_today: 'Half courts are not offered on this day (weekends and holidays are full court only). Please choose the full court.',
+  half_court_bookings_exist: 'A half court on this date is already booked or reserved. Cancel it before making the day full court only.',
+  invalid_date: 'Please choose today or a later date.',
+  court_not_found: 'Court not found.',
+  test_bookings_only_in_testing_mode: 'Test bookings are only possible while online booking is set to "Admins only (testing)".',
+  server_error: 'Something went wrong on our side. Please try again.',
 }
 
 export function userMessage(code: string | null | undefined, fallback = 'Something went wrong. Please try again.') {

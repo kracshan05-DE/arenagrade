@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
-import { allowsMultiHour, courtFacts, lkr, time12 } from '@/lib/courtInfo'
+import { allowsMultiHour, courtFacts, isWeekend, lkr, time12 } from '@/lib/courtInfo'
 import { useBookingMode } from '@/lib/useBookingMode'
 import BookingModeBanner from '@/components/BookingModeBanner'
 
@@ -17,6 +17,7 @@ interface Court {
   operating_end: string
   slot_duration_hrs: number
   max_consecutive_slots: number | null
+  weekend_full_court_only?: boolean | null
   locations: { name: string; address: string }
   sport_types: { name: string }
   court_pricing: {
@@ -60,6 +61,8 @@ export default function CourtPage() {
   const [selectedStart, setSelectedStart] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [slotsLoading, setSlotsLoading] = useState(false)
+  // Holiday marked by an admin as full court only (weekends come from the court setting).
+  const [holiday, setHoliday] = useState<{ reason: string | null } | null>(null)
   const [user, setUser] = useState<any>(null)
 
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' })
@@ -95,17 +98,20 @@ export default function CourtPage() {
     const loadSlots = async () => {
       setSlotsLoading(true)
       setSelectedStart(null)
-      const { data } = await supabase
-        .from('slots')
-        .select('*')
-        .eq('court_id', courtId)
-        .eq('slot_date', selectedDate)
-        .order('start_time')
+      const [{ data }, { data: fullOnly }] = await Promise.all([
+        supabase.from('slots').select('*').eq('court_id', courtId).eq('slot_date', selectedDate).order('start_time'),
+        supabase.from('full_court_only_dates').select('reason').eq('court_id', courtId).eq('day', selectedDate).maybeSingle(),
+      ])
       if (data) setSlots(data)
+      setHoliday(fullOnly ? { reason: fullOnly.reason } : null)
       setSlotsLoading(false)
     }
     loadSlots()
   }, [courtId, selectedDate])
+
+  // Weekends (court setting) and admin-marked holidays are full court only.
+  // Display only: the database refuses half-court holds on those days.
+  const fullCourtOnlyDay = !!court?.has_half_court && (!!holiday || (!!court?.weekend_full_court_only && isWeekend(selectedDate)))
 
   // Group slots by time
   const timeGroups: Record<string, GroupedSlot> = {}
@@ -379,7 +385,7 @@ export default function CourtPage() {
             </span>
             {court.has_half_court && (
               <span style={{ fontSize: '12px', background: '#EFF6FF', color: '#1D4ED8', padding: '4px 10px', borderRadius: '20px' }}>
-                Half court: slots starting before {time12(court.half_court_cutoff ?? '14:00:00')}
+                Half court: {court.weekend_full_court_only ? 'weekdays, ' : ''}slots starting before {time12(court.half_court_cutoff ?? '14:00:00')}
               </span>
             )}
             {allowsMultiHour(court) && (
@@ -444,6 +450,12 @@ export default function CourtPage() {
 
         <BookingModeBanner mode={booking.mode} isAdmin={booking.isAdmin} />
 
+        {fullCourtOnlyDay && (
+          <div role="status" style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', color: '#334155', borderRadius: '10px', padding: '12px 16px', fontSize: '14px', lineHeight: 1.5, margin: '0 0 16px' }}>
+            Full court only on this day{holiday?.reason ? ` (${holiday.reason})` : isWeekend(selectedDate) ? ' (weekend)' : ''}. Half courts are not offered on weekends and holidays.
+          </div>
+        )}
+
         {/* Not logged in banner */}
         {!user && booking.mode === 'public' && (
           <div style={{ background: '#EFF6FF', border: '0.5px solid #BFDBFE', borderRadius: '10px', padding: '12px 16px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
@@ -481,8 +493,8 @@ export default function CourtPage() {
 
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {group.full_court && renderSlotCard(group.full_court, 'Full court', effectiveFCStatus)}
-                    {group.half_a && renderSlotCard(group.half_a, 'Half court A', getEffectiveHalfCourtStatus(group, group.half_a))}
-                    {group.half_b && renderSlotCard(group.half_b, 'Half court B', getEffectiveHalfCourtStatus(group, group.half_b))}
+                    {!fullCourtOnlyDay && group.half_a && renderSlotCard(group.half_a, 'Half court A', getEffectiveHalfCourtStatus(group, group.half_a))}
+                    {!fullCourtOnlyDay && group.half_b && renderSlotCard(group.half_b, 'Half court B', getEffectiveHalfCourtStatus(group, group.half_b))}
                   </div>
                 </div>
               )

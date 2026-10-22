@@ -7,6 +7,7 @@ export interface CourtLike {
   has_half_court?: boolean | null
   max_consecutive_slots?: number | null
   half_court_cutoff?: string | null
+  weekend_full_court_only?: boolean | null
   operating_start?: string | null
   operating_end?: string | null
   court_pricing?: PricingTier[] | null
@@ -35,6 +36,12 @@ export function hourlyPrices(c: CourtLike) {
   return { full: min(['full_court']), half: c.has_half_court ? min(['half_a', 'half_b']) : null }
 }
 
+/** Saturday or Sunday for a YYYY-MM-DD date (calendar date, no timezone shift). */
+export function isWeekend(day: string) {
+  const dow = new Date(`${day}T00:00:00Z`).getUTCDay()
+  return dow === 0 || dow === 6
+}
+
 export const allowsMultiHour = (c: CourtLike) => (c.max_consecutive_slots ?? 1) >= 2
 
 /** Short, honest summary lines for a court card / header. */
@@ -45,7 +52,7 @@ export function courtFacts(c: CourtLike) {
     lines.push(`${lkr(p.full)} per hour · book 1 hour or ${c.max_consecutive_slots} consecutive hours`)
   } else {
     if (p.full) lines.push(`Full court ${lkr(p.full)} per hour`)
-    if (p.half) lines.push(`Half court ${lkr(p.half)} per hour (before ${time12(c.half_court_cutoff ?? '14:00:00')})`)
+    if (p.half) lines.push(`Half court ${lkr(p.half)} per hour (${c.weekend_full_court_only ? 'weekdays, ' : ''}before ${time12(c.half_court_cutoff ?? '14:00:00')})`)
   }
   if (c.operating_start && c.operating_end) lines.push(`Open ${time12(c.operating_start)} – ${time12(c.operating_end)}`)
   return lines
