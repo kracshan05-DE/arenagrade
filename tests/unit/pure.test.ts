@@ -143,3 +143,18 @@ describe('isWeekend (full-court-only display rule)', () => {
     expect(isWeekend('2026-10-26')).toBe(false) // Monday
   })
 })
+
+describe('bookingSpan (admin and My Bookings time ranges)', () => {
+  it('uses the last hour of a multi-hour booking and counts the hours', async () => {
+    const { bookingSpan, hoursLabel } = await import('@/lib/bookingHours')
+    const rows = [{ slots: { start_time: '08:00:00', end_time: '09:00:00' } }, { slots: { start_time: '07:00:00', end_time: '08:00:00' } }]
+    expect(bookingSpan(rows, '08:00:00')).toEqual({ end_time: '09:00:00', hours: 2 })
+    expect(hoursLabel(2)).toBe(' (2 hours)')
+  })
+  it('falls back to the slot itself for single-slot and pre-0800 bookings', async () => {
+    const { bookingSpan, hoursLabel } = await import('@/lib/bookingHours')
+    expect(bookingSpan([], '09:00:00')).toEqual({ end_time: '09:00:00', hours: 1 })
+    expect(bookingSpan(null, '11:00:00')).toEqual({ end_time: '11:00:00', hours: 1 })
+    expect(hoursLabel(1)).toBe('')
+  })
+})

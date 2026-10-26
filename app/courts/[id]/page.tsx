@@ -283,20 +283,26 @@ export default function CourtPage() {
             const status = liveStatus(s)
             const selected = selection?.some((x) => x.id === s.id) ?? false
             const isStart = s.id === selectedStart && !!selection
+            // A later hour of the chosen run belongs to that ONE booking: label it
+            // as included rather than with its own "until …", which looked like a second booking.
+            const includedHour = selected && !isStart
             const reason = status !== 'available' ? getStatusLabel(status) : !run ? 'Next hour not free' : ''
             const endLabel = run ? time12(run[run.length - 1].end_time) : time12(s.end_time)
             return (
               <button key={s.id} role="radio" aria-checked={isStart} disabled={!run} className="ag-tap"
                 onClick={() => setSelectedStart(s.id)}
-                aria-label={run ? `${time12(s.start_time)} to ${endLabel}, ${lkr(run.reduce((a, x) => a + Number(x.price_lkr), 0))}` : `${time12(s.start_time)}, not available: ${reason}`}
+                aria-label={includedHour ? `${time12(s.start_time)} to ${time12(s.end_time)}, included in your ${selection!.length}-hour booking`
+                  : run ? `${time12(s.start_time)} to ${endLabel}, ${lkr(run.reduce((a, x) => a + Number(x.price_lkr), 0))}` : `${time12(s.start_time)}, not available: ${reason}`}
                 style={{
                   textAlign: 'left', borderRadius: '10px', padding: '10px 12px', cursor: run ? 'pointer' : 'not-allowed',
-                  background: selected ? '#0B2818' : run ? '#ECFDF5' : '#F1F5F9',
+                  background: includedHour ? '#2F5D45' : selected ? '#0B2818' : run ? '#ECFDF5' : '#F1F5F9',
                   color: selected ? '#fff' : run ? '#065F46' : '#64748B',
                   border: `2px solid ${selected ? '#0B2818' : run ? '#6EE7B7' : '#E2E8F0'}`,
                 }}>
                 <span style={{ display: 'block', fontSize: '14px', fontWeight: 700 }}>{time12(s.start_time)}</span>
-                <span style={{ display: 'block', fontSize: '12px' }}>{run ? `until ${endLabel}` : reason}</span>
+                <span style={{ display: 'block', fontSize: '12px' }}>
+                  {includedHour ? `Included (${time12(s.start_time)}–${time12(s.end_time)})` : isStart && selection ? `Start · until ${endLabel}` : run ? `until ${endLabel}` : reason}
+                </span>
               </button>
             )
           })}

@@ -161,7 +161,10 @@ export default function MyBookingsPage() {
   const upcomingBookings = bookings.filter(b => b.slot && isUpcoming(b.slot.slot_date, b.slot.start_time) && b.status === 'confirmed')
   const pastBookings = bookings.filter(b => !upcomingBookings.includes(b))
 
-  const BookingCard = ({ booking }: { booking: EnrichedBooking }) => {
+  // A render function, not a nested component: a component declared inside
+  // this page would be a new type on every render, so React would remount the
+  // card (and its reason textarea) on each keystroke and focus would be lost.
+  const renderBookingCard = (booking: EnrichedBooking) => {
     const st = STATUS_CONFIG[booking.status] || STATUS_CONFIG.cancelled
     const isExpanded = expandedId === booking.id
     const isCancelling = cancellingId === booking.id
@@ -170,7 +173,7 @@ export default function MyBookingsPage() {
       : false
 
     return (
-      <div style={{ background: '#fff', borderRadius: '14px', border: `0.5px solid ${booking.status === 'cancellation_requested' ? '#FDE68A' : '#E2E8F0'}`, overflow: 'hidden', marginBottom: '10px' }}>
+      <div key={booking.id} style={{ background: '#fff', borderRadius: '14px', border: `0.5px solid ${booking.status === 'cancellation_requested' ? '#FDE68A' : '#E2E8F0'}`, overflow: 'hidden', marginBottom: '10px' }}>
         <div style={{ padding: '16px 20px', cursor: 'pointer' }} onClick={() => setExpandedId(isExpanded ? null : booking.id)}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -331,13 +334,13 @@ export default function MyBookingsPage() {
             {upcomingBookings.length > 0 && (
               <div style={{ marginBottom: '28px' }}>
                 <p style={{ fontSize: '12px', color: '#1B6B3A', fontWeight: '700', letterSpacing: '0.06em', margin: '0 0 12px' }}>UPCOMING</p>
-                {upcomingBookings.map(b => <BookingCard key={b.id} booking={b} />)}
+                {upcomingBookings.map(renderBookingCard)}
               </div>
             )}
             {pastBookings.length > 0 && (
               <div>
                 <p style={{ fontSize: '12px', color: '#94A3B8', fontWeight: '700', letterSpacing: '0.06em', margin: '0 0 12px' }}>PAST & OTHER BOOKINGS</p>
-                {pastBookings.map(b => <BookingCard key={b.id} booking={b} />)}
+                {pastBookings.map(renderBookingCard)}
               </div>
             )}
           </div>

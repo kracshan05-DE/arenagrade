@@ -51,6 +51,10 @@ export default function AdminCourts() {
   const [editingPricing, setEditingPricing] = useState<Pricing[]>([])
   const [showAddCourt, setShowAddCourt] = useState(false)
   const [message, setMessage] = useState('')
+  // Hourly prices for a court that has none yet (a new court). Without a price
+  // the database refuses to generate slots for that court type.
+  const [newPrices, setNewPrices] = useState({ full: '', half: '' })
+  const [addingPrices, setAddingPrices] = useState(false)
   const [newCourt, setNewCourt] = useState({
     name: '',
     location_id: '',
@@ -153,6 +157,35 @@ export default function AdminCourts() {
       setMessage('Pricing updated successfully.')
     }
   }
+  const missingPriceTypes = (court: Court | null, rows: Pricing[]) => {
+    if (!court) return [] as string[]
+    const needed = ['full_court', ...(court.has_half_court ? ['half_a', 'half_b'] : [])]
+    return needed.filter((t) => !rows.some((r) => r.applies_to === t))
+  }
+
+  const addMissingPrices = async () => {
+    if (!editingCourt) return
+    const missing = missingPriceTypes(editingCourt, editingPricing)
+    const value = (t: string) => Number(t === 'full_court' ? newPrices.full : newPrices.half)
+    for (const t of missing) {
+      const v = value(t)
+      if (!Number.isFinite(v) || v <= 0 || v > 1_000_000) {
+        setMessage(`Enter a valid hourly price for the ${t === 'full_court' ? 'full court' : 'half court'} (LKR, more than 0).`)
+        return
+      }
+    }
+    setAddingPrices(true)
+    const { error } = await supabase.from('court_pricing').insert(missing.map((t) => ({
+      court_id: editingCourt.id, tier_name: 'Standard', time_from: '00:00:00', time_to: '00:00:00',
+      price_lkr: value(t), applies_to: t,
+    })))
+    setAddingPrices(false)
+    if (error) { setMessage('Error saving prices: ' + error.message); return }
+    setNewPrices({ full: '', half: '' })
+    await loadPricing(editingCourt.id)
+    setMessage('Prices saved. You can now generate slots for this court on the Slots page.')
+  }
+
   const toggleCourtStatus = async (court: Court) => {
     await supabase.from('courts').update({ is_active: !court.is_active }).eq('id', court.id)
     await loadAll()
@@ -172,7 +205,7 @@ export default function AdminCourts() {
     if (error) {
       setMessage('Error adding court.')
     } else {
-      setMessage('Court added successfully.')
+      setMessage('Court added. Click Edit on the court to set its hourly prices, then generate slots on the Slots page.')
       setShowAddCourt(false)
       setNewCourt({ name: '', location_id: '', sport_type_id: '', has_half_court: false, half_court_cutoff: '14:00', operating_start: '06:00', operating_end: '22:00', slot_duration_hrs: 2, is_active: true })
       await loadAll()
@@ -398,6 +431,39 @@ export default function AdminCourts() {
                         style={{ marginTop: '8px', background: '#EFF6FF', color: '#1D4ED8', border: 'none', borderRadius: '7px', padding: '7px 14px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
                         Save Pricing
                       </button>
+                    </div>
+                  )}
+
+                  {/* Prices missing (e.g. a new court): set the hourly price per court type */}
+                  {missingPriceTypes(editingCourt, editingPricing).length > 0 && (
+                    <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '10px', padding: '14px' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 700, color: '#92400E', margin: '0 0 4px' }}>Set hourly prices</p>
+                      <p style={{ fontSize: '12px', color: '#92400E', margin: '0 0 10px' }}>
+                        This court has no price for {missingPriceTypes(editingCourt, editingPricing).map((t) => t === 'full_court' ? 'the full court' : t === 'half_a' ? 'half court A' : 'half court B').join(', ')}.
+                        Slots cannot be generated until prices are set. Prices are per hour; a 2-hour slot costs twice the hourly price.
+                      </p>
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                        {missingPriceTypes(editingCourt, editingPricing).includes('full_court') && (
+                          <div>
+                            <label htmlFor={`pfull_${editingCourt.id}`} style={{ display: 'block', fontSize: '12px', color: '#475569', marginBottom: '4px' }}>Full court (LKR per hour)</label>
+                            <input id={`pfull_${editingCourt.id}`} type="number" min={1} inputMode="numeric" value={newPrices.full}
+                              onChange={(e) => setNewPrices({ ...newPrices, full: e.target.value })}
+                              style={{ width: '160px', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
+                          </div>
+                        )}
+                        {missingPriceTypes(editingCourt, editingPricing).some((t) => t !== 'full_court') && (
+                          <div>
+                            <label htmlFor={`phalf_${editingCourt.id}`} style={{ display: 'block', fontSize: '12px', color: '#475569', marginBottom: '4px' }}>Half court A and B (LKR per hour)</label>
+                            <input id={`phalf_${editingCourt.id}`} type="number" min={1} inputMode="numeric" value={newPrices.half}
+                              onChange={(e) => setNewPrices({ ...newPrices, half: e.target.value })}
+                              style={{ width: '160px', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
+                          </div>
+                        )}
+                        <button onClick={addMissingPrices} disabled={addingPrices}
+                          style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, cursor: addingPrices ? 'wait' : 'pointer' }}>
+                          {addingPrices ? 'Saving…' : 'Save prices'}
+                        </button>
+                      </div>
                     </div>
                   )}
 
