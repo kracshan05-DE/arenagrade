@@ -63,6 +63,13 @@ export default function PaymentPage() {
   const [processing, setProcessing] = useState(false)
   const [simOrder, setSimOrder] = useState<string | null>(null)
   const [payError, setPayError] = useState('')
+  // Known even when the reservation is gone, so "Back to court" always works.
+  const [courtId, setCourtId] = useState<string | null>(null)
+  // Set when the customer comes back (e.g. browser Back) to a slot they already booked.
+  const [myBooking, setMyBooking] = useState<{ order: string | null } | null>(null)
+  const [nameInput, setNameInput] = useState('')
+  const [nameSaving, setNameSaving] = useState(false)
+  const [nameError, setNameError] = useState('')
   const searchParams = useSearchParams()
   const cancelledAtGateway = searchParams.get('cancelled') === '1'
   const booking = useBookingMode()
@@ -81,8 +88,14 @@ export default function PaymentPage() {
         .from('slots').select('*').eq('id', slotId).single()
 
       if (!slotData) { setError('Slot not found.'); setLoading(false); return }
+      setCourtId(slotData.court_id)
 
       if (slotData.status !== 'locked' || slotData.locked_by !== currentUser.id) {
+        // Already booked by this customer (e.g. Back after paying)? Say so instead of "expired".
+        const { data: own } = await supabase.from('bookings').select('idempotency_key')
+          .eq('slot_id', slotId).eq('user_id', currentUser.id).in('status', ['confirmed', 'cancellation_requested'])
+          .order('created_at', { ascending: false }).limit(1).maybeSingle()
+        if (own) { setMyBooking({ order: own.idempotency_key ?? null }); setLoading(false); return }
         setError('Your reservation has expired or is invalid. Please go back and book again.')
         setLoading(false)
         return
@@ -209,6 +222,33 @@ export default function PaymentPage() {
     )
   }
 
+  if (myBooking) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
+        <Navbar />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 16px' }}>
+          <div role="status" style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '40px', maxWidth: '400px', textAlign: 'center' }}>
+            <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+            <p style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A', margin: '0 0 6px' }}>This slot is booked by you</p>
+            <p style={{ fontSize: '14px', color: '#475569', margin: '0 0 18px' }}>Your booking is confirmed. There is nothing more to pay.</p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <a href="/my-bookings" className="ag-tap"
+                style={{ display: 'inline-flex', alignItems: 'center', background: '#1B6B3A', color: '#fff', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
+                My Bookings
+              </a>
+              {courtId && (
+                <a href={`/courts/${courtId}`} className="ag-tap"
+                  style={{ display: 'inline-flex', alignItems: 'center', background: '#F1F5F9', color: '#334155', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
+                  Back to court
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (error) {
     return (
       <div style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
@@ -217,15 +257,31 @@ export default function PaymentPage() {
           <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '40px', maxWidth: '400px', textAlign: 'center' }}>
             <div style={{ fontSize: '40px', marginBottom: '12px' }}>⏱</div>
             <p style={{ fontSize: '15px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>{error}</p>
-            <a href={`/courts/${slot?.court_id}`}
+            <a href={courtId ? `/courts/${courtId}` : '/'}
               style={{ display: 'inline-block', background: '#1B6B3A', color: '#fff', borderRadius: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: '600', textDecoration: 'none', marginTop: '8px' }}>
-              Back to court
+              {courtId ? 'Back to court' : 'Find a court'}
             </a>
           </div>
         </div>
       </div>
     )
   }
+
+  // Bookings need a customer name (shown to admins, sent to PayHere). Older
+  // email accounts have none, so it is asked for here, once.
+  const needsName = !!profile && !profile.full_name?.trim()
+  const saveName = async () => {
+    const name = nameInput.trim()
+    if (name.length < 2 || name.length > 80) { setNameError('Enter your full name (2–80 characters).'); return }
+    if (!user) return
+    setNameSaving(true)
+    setNameError('')
+    const { error: saveError } = await supabase.from('profiles').update({ full_name: name }).eq('id', user.id)
+    setNameSaving(false)
+    if (saveError) { setNameError('Could not save your name. Please try again.'); return }
+    setProfile((p) => (p ? { ...p, full_name: name } : p))
+  }
+  const blocked = processing || timeLeft <= 0 || needsName
 
   return (
     <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
@@ -317,8 +373,26 @@ export default function PaymentPage() {
             <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>YOUR DETAILS</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Name</p>
-                <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{profile.full_name || user?.email?.split('@')[0]}</p>
+                {needsName ? (
+                  <div>
+                    <label htmlFor="pay-name" style={{ display: 'block', fontSize: '12px', color: '#334155', fontWeight: 600, margin: '0 0 4px' }}>Your full name (needed for the booking)</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input id="pay-name" type="text" autoComplete="name" maxLength={80} value={nameInput}
+                        onChange={(e) => { setNameInput(e.target.value); setNameError('') }}
+                        style={{ flex: 1, minWidth: 0, border: '1px solid #94A3B8', borderRadius: '8px', padding: '8px 10px', fontSize: '15px' }} />
+                      <button onClick={saveName} disabled={nameSaving} className="ag-tap"
+                        style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '0 14px', fontSize: '14px', fontWeight: 600, cursor: nameSaving ? 'wait' : 'pointer' }}>
+                        {nameSaving ? 'Saving…' : 'Save'}
+                      </button>
+                    </div>
+                    {nameError && <p role="alert" style={{ fontSize: '12px', color: '#B91C1C', margin: '4px 0 0' }}>{nameError}</p>}
+                  </div>
+                ) : (
+                  <>
+                    <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Name</p>
+                    <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{profile.full_name}</p>
+                  </>
+                )}
               </div>
               <div>
                 <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Phone</p>
@@ -356,11 +430,11 @@ export default function PaymentPage() {
         {!simOrder ? (
           <button
             onClick={startPayment}
-            disabled={processing || timeLeft <= 0}
+            disabled={blocked}
             style={{
-              width: '100%', background: processing || timeLeft <= 0 ? '#94A3B8' : '#1B6B3A',
+              width: '100%', background: blocked ? '#94A3B8' : '#1B6B3A',
               color: '#fff', border: 'none', borderRadius: '12px', padding: '16px',
-              fontSize: '16px', fontWeight: '700', cursor: processing || timeLeft <= 0 ? 'not-allowed' : 'pointer',
+              fontSize: '16px', fontWeight: '700', cursor: blocked ? 'not-allowed' : 'pointer',
               marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
             }}
           >
@@ -383,8 +457,8 @@ export default function PaymentPage() {
         )}
 
         {booking.testMode && (
-          <button onClick={confirmTestBooking} disabled={processing || timeLeft <= 0} className="ag-tap"
-            style={{ width: '100%', background: '#fff', color: '#92400E', border: '2px dashed #D97706', borderRadius: '12px', padding: '14px', fontSize: '15px', fontWeight: 700, cursor: processing || timeLeft <= 0 ? 'not-allowed' : 'pointer', marginBottom: '12px' }}>
+          <button onClick={confirmTestBooking} disabled={blocked} className="ag-tap"
+            style={{ width: '100%', background: '#fff', color: '#92400E', border: '2px dashed #D97706', borderRadius: '12px', padding: '14px', fontSize: '15px', fontWeight: 700, cursor: blocked ? 'not-allowed' : 'pointer', marginBottom: '12px' }}>
             Admin: confirm as test booking (no payment)
           </button>
         )}

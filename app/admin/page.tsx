@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { bookingSpan, hoursLabel } from '@/lib/bookingHours'
 import BookingModeControl from '@/components/admin/BookingModeControl'
 
 interface DayStats {
@@ -20,7 +21,7 @@ interface RecentBooking {
   status: string
   user_id: string
   slot_id: string
-  slots?: { slot_date: string; start_time: string; end_time: string; court_type: string }
+  slots?: { slot_date: string; start_time: string; end_time: string; court_type: string; hours?: number }
   profiles?: { full_name: string | null; phone: string | null }
 }
 
@@ -63,11 +64,12 @@ export default function AdminDashboard() {
     if (recent) {
       const enriched = await Promise.all(
         recent.map(async (booking: any) => {
-          const [{ data: slotData }, { data: profileData }] = await Promise.all([
+          const [{ data: slotData }, { data: profileData }, { data: hourRows }] = await Promise.all([
             supabase.from('slots').select('slot_date, start_time, end_time, court_type').eq('id', booking.slot_id).single(),
             supabase.from('profiles').select('full_name, phone').eq('id', booking.user_id).single(),
+            supabase.from('booking_slots').select('slots(start_time, end_time)').eq('booking_id', booking.id),
           ])
-          return { ...booking, slots: slotData, profiles: profileData }
+          return { ...booking, slots: slotData ? { ...slotData, ...bookingSpan(hourRows, slotData.end_time) } : slotData, profiles: profileData }
         })
       )
       setRecentBookings(enriched)
@@ -251,7 +253,7 @@ export default function AdminDashboard() {
                     <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 1px' }}>📱 {booking.profiles?.phone || 'N/A'}</p>
                     {booking.slots && (
                       <p style={{ fontSize: '11px', color: '#94A3B8', margin: 0 }}>
-                        {booking.slots.slot_date} · {booking.slots.start_time?.slice(0,5)} - {booking.slots.end_time?.slice(0,5)} · {COURT_TYPE_LABELS[booking.slots.court_type] || ''}
+                        {booking.slots.slot_date} · {booking.slots.start_time?.slice(0,5)} - {booking.slots.end_time?.slice(0,5)}{hoursLabel(booking.slots.hours)} · {COURT_TYPE_LABELS[booking.slots.court_type] || ''}
                       </p>
                     )}
                   </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { bookingSpan, hoursLabel } from '@/lib/bookingHours'
 import { apiPost } from '@/lib/apiClient'
 import { userMessage } from '@/lib/userMessages'
 
@@ -25,6 +26,7 @@ interface EnrichedBooking extends Booking {
     slot_date: string
     start_time: string
     end_time: string
+    hours?: number
     court_type: string
   }
   profile?: {
@@ -101,14 +103,15 @@ export default function AdminBookings() {
 
     const enriched: EnrichedBooking[] = await Promise.all(
       bookingsData.map(async (booking) => {
-        const [{ data: slotData }, { data: profileData }, { data: courtData }] = await Promise.all([
+        const [{ data: slotData }, { data: profileData }, { data: courtData }, { data: hourRows }] = await Promise.all([
           supabase.from('slots').select('slot_date, start_time, end_time, court_type').eq('id', booking.slot_id).single(),
           supabase.from('profiles').select('full_name, phone').eq('id', booking.user_id).single(),
           supabase.from('courts').select('name').eq('id', booking.court_id).single(),
+          supabase.from('booking_slots').select('slots(start_time, end_time)').eq('booking_id', booking.id),
         ])
         return {
           ...booking,
-          slot: slotData || undefined,
+          slot: slotData ? { ...slotData, ...bookingSpan(hourRows, slotData.end_time) } : undefined,
           profile: profileData || undefined,
           court: courtData || undefined,
           refund: refundByBooking.get(booking.id) || undefined,
@@ -205,7 +208,7 @@ export default function AdminBookings() {
         b.profile?.phone || 'N/A',
         b.court?.name || 'N/A',
         b.slot?.slot_date || 'N/A',
-        b.slot ? `${b.slot.start_time.slice(0,5)} - ${b.slot.end_time.slice(0,5)}` : 'N/A',
+        b.slot ? `${b.slot.start_time.slice(0,5)} - ${b.slot.end_time.slice(0,5)}${hoursLabel(b.slot.hours)}` : 'N/A',
         COURT_TYPE_LABELS[b.slot?.court_type || ''] || 'N/A',
         b.total_lkr,
         b.status,
@@ -397,7 +400,7 @@ export default function AdminBookings() {
                         <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 2px' }}>📱 {customerPhone}</p>
                         {booking.slot && (
                           <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>
-                            📅 {booking.slot.slot_date} · {booking.slot.start_time?.slice(0,5)} - {booking.slot.end_time?.slice(0,5)} · {COURT_TYPE_LABELS[booking.slot.court_type] || ''} · {booking.court?.name || ''}
+                            📅 {booking.slot.slot_date} · {booking.slot.start_time?.slice(0,5)} - {booking.slot.end_time?.slice(0,5)}{hoursLabel(booking.slot.hours)} · {COURT_TYPE_LABELS[booking.slot.court_type] || ''} · {booking.court?.name || ''}
                           </p>
                         )}
                       </div>
