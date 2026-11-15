@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navbar from '@/components/Navbar'
 import { allowsMultiHour, courtFacts, hourlyPrices, lkr } from '@/lib/courtInfo'
+import BrandMark from '@/components/BrandMark'
 
 interface Court {
   id: string; name: string; has_half_court: boolean
@@ -436,7 +437,7 @@ export default function LandingPage() {
       <footer style={{ background: '#081810', padding: '24px 20px' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '26px', height: '26px', background: '#1B6B3A', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px' }}>🏟</div>
+            <BrandMark size={26} />
             <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>ArenaGrade</span>
           </div>
           <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.72)', margin: 0 }}>© 2026 ArenaGrade. All rights reserved. Sri Lanka.</p>

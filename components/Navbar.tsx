@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import BrandMark from '@/components/BrandMark'
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null)
@@ -72,9 +73,7 @@ export default function Navbar() {
       zIndex: 10
     }}>
       <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-        <div style={{ width: '30px', height: '30px', background: '#1B6B3A', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
-          🏟
-        </div>
+        <BrandMark size={30} />
         <span style={{ fontSize: '16px', fontWeight: '600', color: '#0F172A' }}>
           Arena<span style={{ color: '#1B6B3A' }}>Grade</span>
         </span>
