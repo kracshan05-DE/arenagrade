@@ -41,15 +41,15 @@ const shell = (inner: string) => `<!DOCTYPE html>
 <body style="margin:0;padding:0;background:#F8FAFC;font-family:system-ui,-apple-system,sans-serif;">
 <div style="max-width:560px;margin:0 auto;padding:32px 16px;">${inner}
 <div style="text-align:center;padding:16px 0;">
-<p style="font-size:12px;color:#94A3B8;margin:0 0 6px;">Questions? <a href="mailto:info@arenagrade.lk" style="color:#1B6B3A;font-weight:600;">info@arenagrade.lk</a></p>
+<p style="font-size:12px;color:#94A3B8;margin:0 0 6px;">Questions? <a href="mailto:info@arenagrade.lk" style="color:#1D3A5A;font-weight:600;">info@arenagrade.lk</a></p>
 <p style="font-size:11px;color:#CBD5E1;margin:8px 0 0;">© ArenaGrade. Sri Lanka.</p></div></div></body></html>`
 
 export function bookingConfirmedEmail(b: BookingFacts, siteUrl: string) {
   const cell = (label: string, value: string, color = '#0F172A') =>
     `<td style="padding:10px;background:#F8FAFC;width:50%;"><p style="font-size:11px;color:#94A3B8;margin:0 0 3px;">${label}</p><p style="font-size:13px;font-weight:600;color:${color};margin:0;">${value}</p></td>`
   const html = shell(`
-<div style="background:#0B2818;border-radius:14px;padding:28px;margin-bottom:16px;text-align:center;">
-<p style="color:#4ADE80;font-size:13px;font-weight:700;margin:0 0 16px;">ArenaGrade</p>
+<div style="background:#12263D;border-radius:14px;padding:28px;margin-bottom:16px;text-align:center;">
+<p style="color:#A9C9EE;font-size:13px;font-weight:700;margin:0 0 16px;">ArenaGrade</p>
 <h1 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 6px;">Booking Confirmed</h1>
 <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:0;">Your payment was verified and your court is booked.</p></div>
 <div style="background:#fff;border-radius:14px;border:0.5px solid #E2E8F0;padding:24px;margin-bottom:16px;">
@@ -57,7 +57,7 @@ export function bookingConfirmedEmail(b: BookingFacts, siteUrl: string) {
 <p style="font-size:13px;color:#64748B;margin:0 0 16px;">${escapeHtml(b.location ?? '')}</p>
 <table style="width:100%;border-collapse:separate;border-spacing:4px;margin-bottom:16px;">
 <tr>${cell('DATE', escapeHtml(b.slot_date))}${cell('TIME', `${escapeHtml(b.start_time)} - ${escapeHtml(b.end_time)}`)}</tr>
-<tr>${cell('COURT TYPE', escapeHtml(COURT_TYPE_LABEL[b.court_type] ?? b.court_type))}${cell('AMOUNT PAID', escapeHtml(lkr(b.amount)), '#1B6B3A')}</tr>
+<tr>${cell('COURT TYPE', escapeHtml(COURT_TYPE_LABEL[b.court_type] ?? b.court_type))}${cell('AMOUNT PAID', escapeHtml(lkr(b.amount)), '#1D3A5A')}</tr>
 </table>
 <p style="font-size:11px;color:#94A3B8;margin:0 0 2px;">BOOKING REFERENCE</p>
 <p style="font-size:12px;font-weight:600;color:#0F172A;margin:0;font-family:monospace;">${escapeHtml(b.reference)}</p></div>
@@ -117,8 +117,8 @@ export function dailyReportEmail(r: Report, periodLabel: string, siteUrl: string
   const quiet = n(b.created) === 0 && n(p.live_succeeded_count) === 0 && !actions.length
 
   const html = shell(`
-<div style="background:#0B2818;border-radius:14px;padding:24px;margin-bottom:12px;">
-<p style="color:#4ADE80;font-size:12px;font-weight:700;margin:0 0 6px;">ArenaGrade · Daily Operations Report</p>
+<div style="background:#12263D;border-radius:14px;padding:24px;margin-bottom:12px;">
+<p style="color:#A9C9EE;font-size:12px;font-weight:700;margin:0 0 6px;">ArenaGrade · Daily Operations Report</p>
 <h1 style="color:#fff;font-size:20px;margin:0 0 4px;">${escapeHtml(periodLabel)}</h1>
 <p style="color:rgba(255,255,255,0.6);font-size:12px;margin:0;">Period ${escapeHtml(r.period.from)} → ${escapeHtml(r.period.to)} (Asia/Colombo report day)</p></div>
 <div style="background:${actions.length ? '#FEF2F2' : '#ECFDF5'};border:0.5px solid ${actions.length ? '#FECACA' : '#6EE7B7'};border-radius:12px;padding:16px 20px;margin-bottom:12px;">

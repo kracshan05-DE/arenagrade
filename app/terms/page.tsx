@@ -5,17 +5,17 @@ export default function TermsPage() {
     <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ maxWidth: '720px', margin: '0 auto', padding: '48px 20px' }}>
 
-        <a href="/" style={{ fontSize: '13px', color: '#1B6B3A', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '32px' }}>
+        <a href="/" style={{ fontSize: '13px', color: 'var(--ag-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '32px' }}>
           ← Back to home
         </a>
 
         <div style={{ marginBottom: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
             <BrandMark size={32} />
-            <span style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>Arena<span style={{ color: '#1B6B3A' }}>Grade</span></span>
+            <span style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>Arena<span style={{ color: 'var(--ag-primary)' }}>Grade</span></span>
           </div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0F172A', margin: '0 0 6px', letterSpacing: '-0.02em' }}>Terms and Conditions</h1>
-          <p style={{ fontSize: '13px', color: '#94A3B8', margin: 0 }}>Last updated: August 2026</p>
+          <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Last updated: August 2026</p>
         </div>
 
         <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '32px', lineHeight: '1.8' }}>
@@ -71,8 +71,8 @@ export default function TermsPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
-          <a href="/privacy" style={{ fontSize: '13px', color: '#1B6B3A', textDecoration: 'none', fontWeight: '500' }}>Privacy Policy →</a>
-          <a href="/refund-policy" style={{ fontSize: '13px', color: '#1B6B3A', textDecoration: 'none', fontWeight: '500' }}>Refund Policy →</a>
+          <a href="/privacy" style={{ fontSize: '13px', color: 'var(--ag-primary)', textDecoration: 'none', fontWeight: '500' }}>Privacy Policy →</a>
+          <a href="/refund-policy" style={{ fontSize: '13px', color: 'var(--ag-primary)', textDecoration: 'none', fontWeight: '500' }}>Refund Policy →</a>
         </div>
       </div>
     </main>

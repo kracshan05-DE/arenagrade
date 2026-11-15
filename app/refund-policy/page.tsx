@@ -5,31 +5,31 @@ export default function RefundPolicyPage() {
     <main style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ maxWidth: '720px', margin: '0 auto', padding: '48px 20px' }}>
 
-        <a href="/" style={{ fontSize: '13px', color: '#1B6B3A', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '32px' }}>
+        <a href="/" style={{ fontSize: '13px', color: 'var(--ag-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '32px' }}>
           ← Back to home
         </a>
 
         <div style={{ marginBottom: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
             <BrandMark size={32} />
-            <span style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>Arena<span style={{ color: '#1B6B3A' }}>Grade</span></span>
+            <span style={{ fontSize: '15px', fontWeight: '700', color: '#0F172A' }}>Arena<span style={{ color: 'var(--ag-primary)' }}>Grade</span></span>
           </div>
           <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0F172A', margin: '0 0 6px', letterSpacing: '-0.02em' }}>Refund Policy</h1>
-          <p style={{ fontSize: '13px', color: '#94A3B8', margin: 0 }}>Last updated: August 2026</p>
+          <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Last updated: August 2026</p>
         </div>
 
         {/* Quick summary card */}
-        <div style={{ background: '#0B2818', borderRadius: '14px', padding: '24px', marginBottom: '20px' }}>
-          <p style={{ fontSize: '12px', color: '#4ADE80', fontWeight: '700', letterSpacing: '0.08em', margin: '0 0 16px' }}>QUICK SUMMARY</p>
+        <div style={{ background: 'var(--ag-primary-deep)', borderRadius: '14px', padding: '24px', marginBottom: '20px' }}>
+          <p style={{ fontSize: '12px', color: 'var(--ag-accent)', fontWeight: '700', letterSpacing: '0.08em', margin: '0 0 16px' }}>QUICK SUMMARY</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
             {[
-              { time: 'More than 24 hours before', refund: 'Full refund', icon: '✅', color: '#4ADE80' },
+              { time: 'More than 24 hours before', refund: 'Full refund', icon: '✅', color: 'var(--ag-accent)' },
               { time: 'Less than 24 hours before', refund: 'No refund', icon: '❌', color: '#FC8181' },
               { time: 'No-show', refund: 'No refund', icon: '❌', color: '#FC8181' },
             ].map(item => (
               <div key={item.time} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '10px', padding: '14px', textAlign: 'center' }}>
                 <div style={{ fontSize: '24px', marginBottom: '8px' }}>{item.icon}</div>
-                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', margin: '0 0 6px', lineHeight: '1.4' }}>{item.time}</p>
+                <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.72)', margin: '0 0 6px', lineHeight: '1.4' }}>{item.time}</p>
                 <p style={{ fontSize: '14px', fontWeight: '700', color: item.color, margin: 0 }}>{item.refund}</p>
               </div>
             ))}
@@ -86,8 +86,8 @@ export default function RefundPolicyPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
-          <a href="/terms" style={{ fontSize: '13px', color: '#1B6B3A', textDecoration: 'none', fontWeight: '500' }}>Terms and Conditions →</a>
-          <a href="/privacy" style={{ fontSize: '13px', color: '#1B6B3A', textDecoration: 'none', fontWeight: '500' }}>Privacy Policy →</a>
+          <a href="/terms" style={{ fontSize: '13px', color: 'var(--ag-primary)', textDecoration: 'none', fontWeight: '500' }}>Terms and Conditions →</a>
+          <a href="/privacy" style={{ fontSize: '13px', color: 'var(--ag-primary)', textDecoration: 'none', fontWeight: '500' }}>Privacy Policy →</a>
         </div>
       </div>
     </main>

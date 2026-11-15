@@ -112,7 +112,7 @@ export default function LandingPage() {
 
       {/* Cart toast */}
       {cartMessage && (
-        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: '#1B6B3A', color: '#fff', padding: '10px 20px', borderRadius: '30px', fontSize: '13px', fontWeight: '600', zIndex: 200, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', background: 'var(--ag-primary)', color: '#fff', padding: '10px 20px', borderRadius: '30px', fontSize: '13px', fontWeight: '600', zIndex: 200, boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
           ✅ {cartMessage}
         </div>
       )}
@@ -121,7 +121,7 @@ export default function LandingPage() {
       {cartCount > 0 && !showCart && (
         <button
           onClick={() => setShowCart(true)}
-          style={{ position: 'fixed', bottom: '24px', right: '24px', background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '50px', padding: '12px 20px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', zIndex: 100, boxShadow: '0 4px 20px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}
+          style={{ position: 'fixed', bottom: '24px', right: '24px', background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '50px', padding: '12px 20px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', zIndex: 100, boxShadow: '0 4px 20px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}
         >
           🛒 Cart ({cartCount})
         </button>
@@ -138,7 +138,7 @@ export default function LandingPage() {
             </div>
 
             {cart.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '48px 0', color: '#94A3B8' }}>
+              <div style={{ textAlign: 'center', padding: '48px 0', color: '#64748B' }}>
                 <div style={{ fontSize: '40px', marginBottom: '10px' }}>🛒</div>
                 <p style={{ fontSize: '14px' }}>Your cart is empty</p>
               </div>
@@ -147,12 +147,12 @@ export default function LandingPage() {
                 <div style={{ flex: 1 }}>
                   {cart.map(item => (
                     <div key={item.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '12px 0', borderBottom: '0.5px solid #F1F5F9' }}>
-                      <div style={{ width: '48px', height: '48px', background: '#ECFDF5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0, overflow: 'hidden' }}>
+                      <div style={{ width: '48px', height: '48px', background: 'var(--ag-primary-soft)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0, overflow: 'hidden' }}>
                         {item.image ? <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '📦'}
                       </div>
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: '0 0 4px' }}>{item.name}</p>
-                        <p style={{ fontSize: '12px', color: '#1B6B3A', fontWeight: '700', margin: 0 }}>LKR {(item.price_lkr * item.quantity).toLocaleString()}</p>
+                        <p style={{ fontSize: '12px', color: 'var(--ag-primary)', fontWeight: '700', margin: 0 }}>LKR {(item.price_lkr * item.quantity).toLocaleString()}</p>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <button onClick={() => updateQty(item.id, -1)} style={{ width: '26px', height: '26px', background: '#F1F5F9', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '700' }}>-</button>
@@ -166,13 +166,13 @@ export default function LandingPage() {
                 <div style={{ borderTop: '0.5px solid #E2E8F0', paddingTop: '16px', marginTop: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
                     <span style={{ fontSize: '14px', color: '#64748B' }}>Total</span>
-                    <span style={{ fontSize: '18px', fontWeight: '800', color: '#1B6B3A' }}>LKR {cartTotal.toLocaleString()}</span>
+                    <span style={{ fontSize: '18px', fontWeight: '800', color: 'var(--ag-primary)' }}>LKR {cartTotal.toLocaleString()}</span>
                   </div>
                   <button onClick={handleCheckout}
                     style={{ width: '100%', background: '#25D366', color: '#fff', border: 'none', borderRadius: '10px', padding: '13px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                     📱 Order via WhatsApp
                   </button>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', textAlign: 'center', margin: '8px 0 0' }}>We'll confirm your order and arrange delivery</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', textAlign: 'center', margin: '8px 0 0' }}>We'll confirm your order and arrange delivery</p>
                 </div>
               </>
             )}
@@ -213,7 +213,7 @@ export default function LandingPage() {
       )}
 
       {/* ── HERO ── */}
-      <section style={{ background: '#0B2818', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ background: 'var(--ag-primary-deep)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.04 }}>
           <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -228,24 +228,24 @@ export default function LandingPage() {
         </div>
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: isMobile ? '48px 20px 0' : '60px 24px 0', position: 'relative' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.08)', border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '40px', padding: '6px 14px', marginBottom: '20px' }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ADE80', display: 'inline-block' }}></span>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--ag-accent)', display: 'inline-block' }}></span>
             <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', letterSpacing: '0.06em', fontWeight: '500' }}>Sri Lanka's Premier Court Company</span>
           </div>
           <h1 style={{ fontSize: isMobile ? '30px' : '48px', fontWeight: '700', color: '#fff', lineHeight: '1.15', margin: '0 0 16px', letterSpacing: '-0.02em' }}>
-            We Build Courts.<br /><span style={{ color: '#4ADE80' }}>We Grow the Game.</span>
+            We Build Courts.<br /><span style={{ color: 'var(--ag-accent)' }}>We Grow the Game.</span>
           </h1>
           <p style={{ fontSize: isMobile ? '14px' : '16px', color: 'rgba(255,255,255,0.6)', margin: '0 0 28px', lineHeight: '1.7', maxWidth: '520px' }}>
             ArenaGrade designs and constructs world-class sports courts across Sri Lanka — and gives every player a place to book, play, and improve.
           </p>
           <div style={{ display: 'flex', gap: '10px', marginBottom: '40px', flexWrap: 'wrap' }}>
-            <a href="#book" style={{ background: '#4ADE80', color: '#0B2818', padding: '11px 22px', borderRadius: '8px', fontSize: '14px', fontWeight: '700', textDecoration: 'none' }}>Book a court →</a>
+            <a href="#book" style={{ background: 'var(--ag-accent)', color: 'var(--ag-primary-deep)', padding: '11px 22px', borderRadius: '8px', fontSize: '14px', fontWeight: '700', textDecoration: 'none' }}>Book a court →</a>
             <a href="#shop" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', padding: '11px 22px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', textDecoration: 'none', border: '0.5px solid rgba(255,255,255,0.15)' }}>Shop equipment</a>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', borderTop: '0.5px solid rgba(255,255,255,0.1)', paddingTop: '24px' }}>
             {[{ num: '10+', label: 'Courts built' }, { num: '5', label: 'Sports covered' }, { num: '2023', label: 'Founded' }].map((s, i) => (
               <div key={s.label} style={{ padding: isMobile ? '0 12px 24px' : '0 20px 28px', borderRight: i < 2 ? '0.5px solid rgba(255,255,255,0.1)' : 'none' }}>
-                <p style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: '700', color: '#4ADE80', margin: '0 0 4px' }}>{s.num}</p>
-                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', margin: 0 }}>{s.label}</p>
+                <p style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: '700', color: 'var(--ag-accent)', margin: '0 0 4px' }}>{s.num}</p>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.72)', margin: 0 }}>{s.label}</p>
               </div>
             ))}
           </div>
@@ -256,8 +256,8 @@ export default function LandingPage() {
       <section id="book" style={{ background: '#FAFAF8', padding: isMobile ? '48px 20px' : '60px 24px', borderBottom: '0.5px solid #E5E7EB' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
           <div style={{ marginBottom: '24px' }}>
-            <p style={{ fontSize: '12px', color: '#1B6B3A', fontWeight: '700', letterSpacing: '0.1em', margin: '0 0 8px' }}>BOOK A COURT</p>
-            <h2 style={{ fontSize: isMobile ? '24px' : '28px', fontWeight: '700', color: '#0B2818', margin: '0 0 8px', letterSpacing: '-0.02em' }}>Find your court.</h2>
+            <p style={{ fontSize: '12px', color: 'var(--ag-primary)', fontWeight: '700', letterSpacing: '0.1em', margin: '0 0 8px' }}>BOOK A COURT</p>
+            <h2 style={{ fontSize: isMobile ? '24px' : '28px', fontWeight: '700', color: 'var(--ag-primary-deep)', margin: '0 0 8px', letterSpacing: '-0.02em' }}>Find your court.</h2>
             <p style={{ fontSize: '14px', color: '#64748B', margin: 0 }}>Browse our available courts and book your slot online.</p>
           </div>
           {loading ? (
@@ -275,7 +275,7 @@ export default function LandingPage() {
                 return (
                 <article key={court.id} aria-labelledby={`court-${court.id}`} style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '18px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: '14px' }}>
                   <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', minWidth: 0 }}>
-                    <div aria-hidden="true" style={{ width: '52px', height: '52px', background: '#ECFDF5', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
+                    <div aria-hidden="true" style={{ width: '52px', height: '52px', background: 'var(--ag-primary-soft)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
                       {SPORT_ICONS[court.sport_types.name] || '🏟'}
                     </div>
                     <div style={{ minWidth: 0 }}>
@@ -288,7 +288,7 @@ export default function LandingPage() {
                       </ul>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {court.has_half_court && <span style={{ fontSize: '12px', background: '#EFF6FF', color: '#1D4ED8', padding: '3px 9px', borderRadius: '20px' }}>Full &amp; half court</span>}
-                        {allowsMultiHour(court) && <span style={{ fontSize: '12px', background: '#ECFDF5', color: '#065F46', padding: '3px 9px', borderRadius: '20px' }}>1 or 2 hour bookings</span>}
+                        {allowsMultiHour(court) && <span style={{ fontSize: '12px', background: 'var(--ag-primary-soft)', color: 'var(--ag-primary)', padding: '3px 9px', borderRadius: '20px' }}>1 or 2 hour bookings</span>}
                       </div>
                     </div>
                   </div>
@@ -296,11 +296,11 @@ export default function LandingPage() {
                     {Number.isFinite(from) && (
                       <div>
                         <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 2px' }}>From</p>
-                        <p style={{ fontSize: '18px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>{lkr(from)}<span style={{ fontSize: '12px', fontWeight: 600, color: '#64748B' }}> / hour</span></p>
+                        <p style={{ fontSize: '18px', fontWeight: '800', color: 'var(--ag-primary)', margin: 0 }}>{lkr(from)}<span style={{ fontSize: '12px', fontWeight: 600, color: '#64748B' }}> / hour</span></p>
                       </div>
                     )}
                     <a href={`/courts/${court.id}`} className="ag-tap" aria-label={`View available slots for ${court.name}`}
-                      style={{ background: '#1B6B3A', color: '#fff', padding: '12px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: '700', textDecoration: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center' }}>
+                      style={{ background: 'var(--ag-primary)', color: '#fff', padding: '12px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: '700', textDecoration: 'none', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center' }}>
                       View slots
                     </a>
                   </div>
@@ -314,12 +314,12 @@ export default function LandingPage() {
 
       {/* ── PORTFOLIO ── */}
       {portfolio.length > 0 && (
-        <section style={{ background: '#0B2818', padding: isMobile ? '48px 20px' : '60px 24px' }}>
+        <section style={{ background: 'var(--ag-primary-deep)', padding: isMobile ? '48px 20px' : '60px 24px' }}>
           <div style={{ maxWidth: '900px', margin: '0 auto' }}>
             <div style={{ marginBottom: '28px' }}>
-              <p style={{ fontSize: '12px', color: '#4ADE80', fontWeight: '700', letterSpacing: '0.1em', margin: '0 0 8px' }}>OUR WORK</p>
+              <p style={{ fontSize: '12px', color: 'var(--ag-accent)', fontWeight: '700', letterSpacing: '0.1em', margin: '0 0 8px' }}>OUR WORK</p>
               <h2 style={{ fontSize: isMobile ? '24px' : '28px', fontWeight: '700', color: '#fff', margin: '0 0 8px', letterSpacing: '-0.02em' }}>Courts we've built.</h2>
-              <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', margin: 0 }}>A portfolio of world-class courts built across Sri Lanka.</p>
+              <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.72)', margin: 0 }}>A portfolio of world-class courts built across Sri Lanka.</p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '14px' }}>
               {portfolio.map(item => (
@@ -336,8 +336,8 @@ export default function LandingPage() {
                   </div>
                   <div style={{ padding: '14px' }}>
                     <p style={{ fontSize: '14px', fontWeight: '700', color: '#fff', margin: '0 0 4px' }}>{item.title}</p>
-                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', margin: '0 0 6px' }}>📍 {item.location}</p>
-                    <span style={{ fontSize: '11px', background: 'rgba(74,222,128,0.12)', color: '#4ADE80', padding: '2px 8px', borderRadius: '20px', border: '0.5px solid rgba(74,222,128,0.2)' }}>{item.sport_type}</span>
+                    <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.72)', margin: '0 0 6px' }}>📍 {item.location}</p>
+                    <span style={{ fontSize: '11px', background: 'rgba(169,201,238,0.12)', color: 'var(--ag-accent)', padding: '2px 8px', borderRadius: '20px', border: '0.5px solid rgba(169,201,238,0.2)' }}>{item.sport_type}</span>
                   </div>
                 </div>
               ))}
@@ -352,13 +352,13 @@ export default function LandingPage() {
           <div style={{ maxWidth: '900px', margin: '0 auto' }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <p style={{ fontSize: '12px', color: '#1B6B3A', fontWeight: '700', letterSpacing: '0.1em', margin: '0 0 8px' }}>EQUIPMENT STORE</p>
-                <h2 style={{ fontSize: isMobile ? '24px' : '28px', fontWeight: '700', color: '#0B2818', margin: '0 0 8px', letterSpacing: '-0.02em' }}>Shop gear.</h2>
+                <p style={{ fontSize: '12px', color: 'var(--ag-primary)', fontWeight: '700', letterSpacing: '0.1em', margin: '0 0 8px' }}>EQUIPMENT STORE</p>
+                <h2 style={{ fontSize: isMobile ? '24px' : '28px', fontWeight: '700', color: 'var(--ag-primary-deep)', margin: '0 0 8px', letterSpacing: '-0.02em' }}>Shop gear.</h2>
                 <p style={{ fontSize: '14px', color: '#64748B', margin: 0 }}>Premium sports equipment delivered to your door.</p>
               </div>
               {cartCount > 0 && (
                 <button onClick={() => setShowCart(true)}
-                  style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   🛒 View cart ({cartCount})
                 </button>
               )}
@@ -375,14 +375,14 @@ export default function LandingPage() {
                   </div>
                   <div style={{ padding: '14px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <p style={{ fontSize: '13px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px', lineHeight: '1.3' }}>{product.name}</p>
-                    <p style={{ fontSize: '14px', fontWeight: '800', color: '#1B6B3A', margin: '0 0 4px' }}>LKR {product.price_lkr.toLocaleString()}</p>
+                    <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--ag-primary)', margin: '0 0 4px' }}>LKR {product.price_lkr.toLocaleString()}</p>
                     {product.is_bulk_available && product.bulk_price_lkr && (
                       <p style={{ fontSize: '11px', color: '#1D4ED8', margin: '0 0 8px' }}>Bulk: LKR {product.bulk_price_lkr.toLocaleString()} (min {product.bulk_min_qty})</p>
                     )}
                     <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
                       <button
                         onClick={() => addToCart(product)}
-                        style={{ width: '100%', background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
+                        style={{ width: '100%', background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}
                       >
                         Add to cart
                       </button>
@@ -399,7 +399,7 @@ export default function LandingPage() {
       <section id="about" style={{ background: '#F0FDF4', padding: isMobile ? '48px 20px' : '60px 24px', borderTop: '0.5px solid #D1FAE5', borderBottom: '0.5px solid #D1FAE5' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'center' }}>
           <p style={{ fontSize: '12px', color: '#047857', fontWeight: '700', letterSpacing: '0.1em', margin: '0 0 8px' }}>WHO WE ARE</p>
-          <h2 style={{ fontSize: isMobile ? '24px' : '28px', fontWeight: '700', color: '#0B2818', margin: '0 0 14px', letterSpacing: '-0.02em' }}>Built by players, for players.</h2>
+          <h2 style={{ fontSize: isMobile ? '24px' : '28px', fontWeight: '700', color: 'var(--ag-primary-deep)', margin: '0 0 14px', letterSpacing: '-0.02em' }}>Built by players, for players.</h2>
           <p style={{ fontSize: '14px', color: '#374151', margin: '0 auto 32px', maxWidth: '620px', lineHeight: '1.8' }}>
             ArenaGrade is a Sri Lankan sports infrastructure company. We plan, design, and construct basketball, squash, and netball courts to international standards — and we run this platform so every court we build stays full, every player stays active, and the game keeps growing.
           </p>
@@ -410,8 +410,8 @@ export default function LandingPage() {
               { title: 'Online Booking', desc: 'Book our courts online in seconds. Half court or full court, off-peak or peak — choose your slot and pay securely.' },
             ].map(item => (
               <div key={item.title} style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #D1FAE5', padding: '18px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4ADE80', marginBottom: '12px' }} />
-                <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#0B2818', margin: '0 0 6px' }}>{item.title}</h3>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--ag-accent)', marginBottom: '12px' }} />
+                <h3 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--ag-primary-deep)', margin: '0 0 6px' }}>{item.title}</h3>
                 <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, lineHeight: '1.7' }}>{item.desc}</p>
               </div>
             ))}
@@ -420,21 +420,21 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ background: '#0B2818', padding: isMobile ? '48px 20px' : '60px 24px', textAlign: 'center' }}>
+      <section style={{ background: 'var(--ag-primary-deep)', padding: isMobile ? '48px 20px' : '60px 24px', textAlign: 'center' }}>
         <div style={{ maxWidth: '560px', margin: '0 auto' }}>
           <h2 style={{ fontSize: isMobile ? '24px' : '28px', fontWeight: '700', color: '#fff', margin: '0 0 12px', letterSpacing: '-0.02em' }}>Ready to play?</h2>
-          <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', margin: '0 0 24px', lineHeight: '1.7' }}>
+          <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.72)', margin: '0 0 24px', lineHeight: '1.7' }}>
             Book a court today or reach out about building one for your school, club, or facility.
           </p>
           <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="#book" style={{ background: '#4ADE80', color: '#0B2818', padding: '11px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: '700', textDecoration: 'none' }}>Book a court</a>
+            <a href="#book" style={{ background: 'var(--ag-accent)', color: 'var(--ag-primary-deep)', padding: '11px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: '700', textDecoration: 'none' }}>Book a court</a>
             <a href="mailto:info@arenagrade.lk" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', padding: '11px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', textDecoration: 'none', border: '0.5px solid rgba(255,255,255,0.15)' }}>Contact us</a>
           </div>
         </div>
       </section>
 
       {/* ── FOOTER ── */}
-      <footer style={{ background: '#081810', padding: '24px 20px' }}>
+      <footer style={{ background: 'var(--ag-ink)', padding: '24px 20px' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <BrandMark size={26} />

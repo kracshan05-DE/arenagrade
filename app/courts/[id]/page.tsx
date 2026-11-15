@@ -205,7 +205,7 @@ export default function CourtPage() {
         <p style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 2px', color: '#0F172A' }}>{label}</p>
         <p style={{ fontSize: '12px', margin: '0 0 8px', color: '#475569' }}>{getStatusLabel(status)}</p>
         {price && status !== 'na' && status !== 'blocked' && (
-          <p style={{ fontSize: '14px', fontWeight: '700', margin: '0 0 8px', color: status === 'available' ? '#1B6B3A' : style.color }}>
+          <p style={{ fontSize: '14px', fontWeight: '700', margin: '0 0 8px', color: status === 'available' ? 'var(--ag-primary)' : style.color }}>
             LKR {price.toLocaleString()}
           </p>
         )}
@@ -214,7 +214,7 @@ export default function CourtPage() {
             onClick={() => handleBook(slot)}
             className="ag-tap"
             aria-label={`Book ${label}, ${time12(slot.start_time)} to ${time12(slot.end_time)}, ${lkr(slot.price_lkr)}`}
-            style={{ width: '100%', background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}
+            style={{ width: '100%', background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}
           >
             Book
           </button>
@@ -265,9 +265,9 @@ export default function CourtPage() {
               return (
                 <button key={h} role="radio" aria-checked={active} className="ag-tap"
                   onClick={() => { setHours(h); setSelectedStart(null) }}
-                  style={{ flex: 1, background: active ? '#0B2818' : '#fff', color: active ? '#fff' : '#0F172A', border: `2px solid ${active ? '#0B2818' : '#CBD5E1'}`, borderRadius: '12px', padding: '10px', cursor: 'pointer', textAlign: 'left' }}>
+                  style={{ flex: 1, background: active ? 'var(--ag-primary-deep)' : '#fff', color: active ? '#fff' : '#0F172A', border: `2px solid ${active ? 'var(--ag-primary-deep)' : '#CBD5E1'}`, borderRadius: '12px', padding: '10px', cursor: 'pointer', textAlign: 'left' }}>
                   <span style={{ display: 'block', fontSize: '15px', fontWeight: 700 }}>{h} hour{h > 1 ? 's' : ''}</span>
-                  {price !== null && <span style={{ display: 'block', fontSize: '13px', color: active ? '#4ADE80' : '#1B6B3A', fontWeight: 700 }}>{lkr(price)}</span>}
+                  {price !== null && <span style={{ display: 'block', fontSize: '13px', color: active ? 'var(--ag-accent)' : 'var(--ag-primary)', fontWeight: 700 }}>{lkr(price)}</span>}
                 </button>
               )
             })}
@@ -295,9 +295,9 @@ export default function CourtPage() {
                   : run ? `${time12(s.start_time)} to ${endLabel}, ${lkr(run.reduce((a, x) => a + Number(x.price_lkr), 0))}` : `${time12(s.start_time)}, not available: ${reason}`}
                 style={{
                   textAlign: 'left', borderRadius: '10px', padding: '10px 12px', cursor: run ? 'pointer' : 'not-allowed',
-                  background: includedHour ? '#2F5D45' : selected ? '#0B2818' : run ? '#ECFDF5' : '#F1F5F9',
+                  background: includedHour ? 'var(--ag-primary-hover)' : selected ? 'var(--ag-primary-deep)' : run ? '#ECFDF5' : '#F1F5F9',
                   color: selected ? '#fff' : run ? '#065F46' : '#64748B',
-                  border: `2px solid ${selected ? '#0B2818' : run ? '#6EE7B7' : '#E2E8F0'}`,
+                  border: `2px solid ${selected ? 'var(--ag-primary-deep)' : run ? '#6EE7B7' : '#E2E8F0'}`,
                 }}>
                 <span style={{ display: 'block', fontSize: '14px', fontWeight: 700 }}>{time12(s.start_time)}</span>
                 <span style={{ display: 'block', fontSize: '12px' }}>
@@ -312,22 +312,22 @@ export default function CourtPage() {
         {selection && <div aria-hidden="true" style={{ height: '96px' }} />}
         <div aria-live="polite" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, padding: '0 16px 16px', zIndex: 50, pointerEvents: 'none' }}>
           {selection && (
-            <div style={{ maxWidth: '648px', margin: '0 auto', pointerEvents: 'auto', background: '#0B2818', color: '#fff', borderRadius: '14px', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', boxShadow: '0 8px 24px rgba(11,40,24,0.25)' }}>
+            <div style={{ maxWidth: '648px', margin: '0 auto', pointerEvents: 'auto', background: 'var(--ag-primary-deep)', color: '#fff', borderRadius: '14px', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', boxShadow: '0 8px 24px rgba(18,38,61,0.25)' }}>
               <div>
                 <p style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>
                   {time12(selection[0].start_time)} – {time12(selection[selection.length - 1].end_time)}
                 </p>
-                <p style={{ margin: 0, fontSize: '13px', color: '#BBF7D0' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--ag-accent-soft)' }}>
                   {selection.length} hour{selection.length > 1 ? 's' : ''} · {lkr(total)}
                 </p>
               </div>
               {booking.canBook ? (
                 <button onClick={() => goToBooking(selection.map((x) => x.id))} className="ag-tap"
-                  style={{ background: '#4ADE80', color: '#0B2818', border: 'none', borderRadius: '10px', padding: '10px 18px', fontSize: '15px', fontWeight: 800, cursor: 'pointer' }}>
+                  style={{ background: 'var(--ag-accent)', color: 'var(--ag-primary-deep)', border: 'none', borderRadius: '10px', padding: '10px 18px', fontSize: '15px', fontWeight: 800, cursor: 'pointer' }}>
                   Continue
                 </button>
               ) : (
-                <span style={{ fontSize: '14px', color: '#BBF7D0' }}>{booking.mode === 'closed' ? 'Booking paused' : 'Online booking opens soon'}</span>
+                <span style={{ fontSize: '14px', color: 'var(--ag-accent-soft)' }}>{booking.mode === 'closed' ? 'Booking paused' : 'Online booking opens soon'}</span>
               )}
             </div>
           )}
@@ -358,7 +358,7 @@ export default function CourtPage() {
 
       <div style={{ maxWidth: '680px', margin: '0 auto', padding: '24px 16px 48px' }}>
 
-        <a href="/" style={{ fontSize: '13px', color: '#1B6B3A', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '20px' }}>
+        <a href="/" style={{ fontSize: '13px', color: 'var(--ag-primary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '20px' }}>
           ← Back to search
         </a>
 

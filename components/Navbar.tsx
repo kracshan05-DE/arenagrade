@@ -1,156 +1,113 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import BrandMark from '@/components/BrandMark'
+import Icon from '@/components/Icon'
+
+type Profile = { full_name: string | null; role: string | null }
 
 export default function Navbar() {
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('full_name, phone, role')
-          .eq('id', user.id)
-          .single()
-        if (profileData) {
-          setProfile(profileData)
-          if (profileData.role === 'super_admin') setIsAdmin(true)
-        }
-      }
-      setLoading(false)
+    let alive = true
+    const load = async (u: User | null) => {
+      if (!u) { setUser(null); setProfile(null); return }
+      setUser(u)
+      const { data } = await supabase.from('profiles').select('full_name, role').eq('id', u.id).maybeSingle()
+      if (alive) setProfile(data ?? null)
     }
-    getUser()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser(session.user)
-      } else {
-        setUser(null)
-        setProfile(null)
-        setIsAdmin(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
+    supabase.auth.getUser().then(async ({ data: { user: u } }) => { await load(u); if (alive) setLoading(false) })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => { void load(session?.user ?? null) })
+    return () => { alive = false; subscription.unsubscribe() }
   }, [])
 
+  // Close the account menu on outside click or Escape (focus returns to the button).
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node) && !buttonRef.current?.contains(e.target as Node)) setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMenuOpen(false); buttonRef.current?.focus() } }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [menuOpen])
+
   const handleSignOut = async () => {
+    setSigningOut(true)
     await supabase.auth.signOut()
     window.location.href = '/'
   }
 
-  const getDisplayName = () => {
-    if (profile?.full_name) return profile.full_name
-    if (user?.user_metadata?.full_name) return user.user_metadata.full_name
-    if (user?.email) return user.email.split('@')[0]
-    return 'Account'
-  }
-
-  const getInitials = () => {
-    const name = getDisplayName()
-    return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
-  }
+  const isAdmin = profile?.role === 'super_admin'
+  const displayName = profile?.full_name?.trim() || (user?.user_metadata?.full_name as string | undefined) || user?.email?.split('@')[0] || 'Account'
+  const firstName = displayName.split(' ')[0]
+  const initials = displayName.split(/\s+/).map((n) => n[0]).join('').toUpperCase().slice(0, 2)
 
   return (
-    <header style={{
-      background: '#fff',
-      borderBottom: '0.5px solid #E2E8F0',
-      padding: '0 24px',
-      height: '56px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      position: 'sticky',
-      top: 0,
-      zIndex: 10
-    }}>
-      <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-        <BrandMark size={30} />
-        <span style={{ fontSize: '16px', fontWeight: '600', color: '#0F172A' }}>
-          Arena<span style={{ color: '#1B6B3A' }}>Grade</span>
-        </span>
-      </a>
+    <header style={{ background: 'rgba(255,255,255,0.96)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ag-border)', position: 'sticky', top: 0, zIndex: 30 }}>
+      <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '0 16px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <a href="/" aria-label="ArenaGrade home" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+          <BrandMark size={34} />
+          <span style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--ag-text)' }}>
+            Arena<span style={{ color: 'var(--ag-primary)' }}>Grade</span>
+          </span>
+        </a>
 
-      {loading ? (
-        <div style={{ width: '80px', height: '32px', background: '#F1F5F9', borderRadius: '8px' }} />
-      ) : user ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: '32px', height: '32px', background: '#1B6B3A', borderRadius: '50%',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '12px', fontWeight: '700', color: '#fff'
-            }}>
-              {getInitials()}
-            </div>
-            <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>
-              Hi, {getDisplayName().split(' ')[0]}
-            </p>
-          </div>
-
-          <a
-            href="/my-bookings"
-            style={{
-              fontSize: '12px',
-              color: '#1B6B3A',
-              padding: '6px 12px',
-              borderRadius: '7px',
-              textDecoration: 'none',
-              fontWeight: '500',
-              background: '#ECFDF5',
-              border: '0.5px solid #D1FAE5',
-            }}
-          >
-            My Bookings
-          </a>
-
-          {isAdmin && (
-            <a
-              href="/admin"
-              style={{
-                fontSize: '12px',
-                background: '#0B2818',
-                color: '#4ADE80',
-                padding: '6px 12px',
-                borderRadius: '7px',
-                textDecoration: 'none',
-                fontWeight: '600',
-                border: '0.5px solid #1B6B3A',
-              }}
-            >
-              Admin panel
+        {loading ? (
+          <div aria-hidden="true" style={{ width: '96px', height: '36px', background: '#EEF2F6', borderRadius: '10px' }} />
+        ) : user ? (
+          <nav aria-label="Account" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <a href="/my-bookings" className="ag-btn ag-btn-ghost ag-btn-sm ag-hide-sm">
+              <Icon name="calendar" size={16} /> My bookings
             </a>
-          )}
-
-          <button
-            onClick={handleSignOut}
-            style={{
-              fontSize: '12px', color: '#64748B', background: '#F1F5F9',
-              border: 'none', borderRadius: '7px', padding: '6px 12px',
-              cursor: 'pointer', fontWeight: '500'
-            }}
-          >
-            Sign out
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <a href="/auth" style={{ fontSize: '13px', color: '#64748B', padding: '6px 12px', borderRadius: '7px', textDecoration: 'none' }}>
-            Sign in
-          </a>
-          <a href="/auth" style={{ fontSize: '13px', background: '#1B6B3A', color: '#fff', padding: '7px 16px', borderRadius: '7px', textDecoration: 'none', fontWeight: '500' }}>
-            Book now
-          </a>
-        </div>
-      )}
+            {isAdmin && (
+              <a href="/admin" className="ag-btn ag-btn-secondary ag-btn-sm ag-hide-sm">
+                <Icon name="shield" size={16} /> Admin
+              </a>
+            )}
+            <div style={{ position: 'relative' }}>
+              <button ref={buttonRef} type="button" onClick={() => setMenuOpen((v) => !v)}
+                aria-expanded={menuOpen} aria-controls="ag-account-menu" aria-label={`Account menu for ${displayName}`}
+                className="ag-btn ag-btn-ghost ag-btn-sm" style={{ paddingLeft: '6px', gap: '8px' }}>
+                <span aria-hidden="true" style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'var(--ag-primary)', color: '#fff',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>{initials}</span>
+                <span className="ag-hide-sm" style={{ color: 'var(--ag-text)' }}>{firstName}</span>
+                <Icon name="chevronDown" size={16} />
+              </button>
+              {menuOpen && (
+                <div id="ag-account-menu" ref={menuRef} className="ag-menu">
+                  <div style={{ padding: '10px 12px 8px' }}>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--ag-text)' }}>{displayName}</p>
+                    {user.email && <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--ag-text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.email}</p>}
+                  </div>
+                  <div className="ag-menu-sep" />
+                  <a href="/my-bookings" className="ag-menu-item"><Icon name="calendar" /> My bookings</a>
+                  {isAdmin && <a href="/admin" className="ag-menu-item"><Icon name="shield" /> Admin panel</a>}
+                  <div className="ag-menu-sep" />
+                  <button type="button" onClick={handleSignOut} disabled={signingOut} className="ag-menu-item" style={{ color: '#B91C1C' }}>
+                    <Icon name="logout" style={{ color: '#B91C1C' }} /> {signingOut ? 'Signing out…' : 'Sign out'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </nav>
+        ) : (
+          <nav aria-label="Account" style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <a href="/auth" className="ag-btn ag-btn-ghost ag-btn-sm"><Icon name="login" size={16} /> Sign in</a>
+            <a href="/#book" className="ag-btn ag-btn-primary ag-btn-sm">Book a court</a>
+          </nav>
+        )}
+      </div>
     </header>
   )
 }

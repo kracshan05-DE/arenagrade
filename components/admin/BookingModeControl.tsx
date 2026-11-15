@@ -56,9 +56,9 @@ export default function BookingModeControl() {
           return (
             <button key={o.value} role="radio" aria-checked={active} disabled={busy || mode === null} onClick={() => change(o.value)} className="ag-tap"
               style={{ textAlign: 'left', borderRadius: '10px', padding: '12px', cursor: busy ? 'wait' : 'pointer',
-                background: active ? '#0B2818' : '#F8FAFC', color: active ? '#fff' : '#0F172A', border: `2px solid ${active ? '#0B2818' : '#E2E8F0'}` }}>
+                background: active ? 'var(--ag-primary-deep)' : '#F8FAFC', color: active ? '#fff' : '#0F172A', border: `2px solid ${active ? 'var(--ag-primary-deep)' : '#E2E8F0'}` }}>
               <span style={{ display: 'block', fontSize: '14px', fontWeight: 700, marginBottom: '2px' }}>{o.title}{active ? ' (current)' : ''}</span>
-              <span style={{ display: 'block', fontSize: '12px', color: active ? '#BBF7D0' : '#475569' }}>{o.text}</span>
+              <span style={{ display: 'block', fontSize: '12px', color: active ? 'var(--ag-accent-soft)' : '#475569' }}>{o.text}</span>
             </button>
           )
         })}

@@ -52,7 +52,7 @@ const COURT_TYPE_LABELS: Record<string, string> = {
 
 const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string }> = {
   confirmed:              { bg: '#ECFDF5', color: '#065F46', label: 'Confirmed' },
-  cancellation_requested: { bg: '#FEE2E2', color: '#DC2626', label: 'Cancel Requested' },
+  cancellation_requested: { bg: '#FEE2E2', color: '#B91C1C', label: 'Cancel Requested' },
   cancelled:              { bg: '#F1F5F9', color: '#64748B', label: 'Cancelled' },
 }
 
@@ -229,7 +229,7 @@ export default function AdminBookings() {
   const pendingCount = allBookings.filter(b => b.status === 'cancellation_requested').length
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 4vw, 32px)' }}>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
@@ -254,7 +254,7 @@ export default function AdminBookings() {
       {/* Pending cancellations alert */}
       {pendingCount > 0 && (
         <div style={{ background: '#FEE2E2', border: '0.5px solid #FECACA', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <p style={{ fontSize: '13px', color: '#DC2626', fontWeight: '600', margin: 0 }}>
+          <p style={{ fontSize: '13px', color: '#B91C1C', fontWeight: '600', margin: 0 }}>
             ⚠️ {pendingCount} cancellation request{pendingCount > 1 ? 's' : ''} need your attention
           </p>
           <button onClick={() => setFilterStatus('cancellation_requested')}
@@ -266,36 +266,38 @@ export default function AdminBookings() {
 
       {/* Filters */}
       <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '16px 20px', marginBottom: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '10px', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', alignItems: 'end' }}>
 
           {/* Phone/name search */}
           <div>
-            <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>SEARCH</label>
+            <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px', fontWeight: '500' }}>SEARCH</label>
             <input
               type="text"
               value={searchPhone}
               onChange={e => setSearchPhone(e.target.value)}
               placeholder="Phone or name..."
-              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', color: '#0F172A' }}
+              aria-label="Search bookings by phone or name"
+              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box', color: '#0F172A' }}
             />
           </div>
 
           {/* Date filter */}
           <div>
-            <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>SLOT DATE</label>
+            <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px', fontWeight: '500' }}>SLOT DATE</label>
             <input
               type="date"
               value={filterDate}
+              aria-label="Filter by slot date"
               onChange={e => setFilterDate(e.target.value)}
-              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', color: filterDate ? '#0F172A' : '#94A3B8', background: '#fff' }}
+              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box', color: filterDate ? '#0F172A' : '#94A3B8', background: '#fff' }}
             />
           </div>
 
           {/* Status filter */}
           <div>
-            <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>STATUS</label>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff', color: '#0F172A' }}>
+            <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px', fontWeight: '500' }}>STATUS</label>
+            <select aria-label="Filter by status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff', color: '#0F172A' }}>
               <option value="all">All statuses</option>
               <option value="confirmed">Confirmed</option>
               <option value="cancellation_requested">Cancel Requested</option>
@@ -305,9 +307,9 @@ export default function AdminBookings() {
 
           {/* Court filter */}
           <div>
-            <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px', fontWeight: '500' }}>COURT</label>
-            <select value={filterCourt} onChange={e => setFilterCourt(e.target.value)}
-              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff', color: '#0F172A' }}>
+            <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px', fontWeight: '500' }}>COURT</label>
+            <select aria-label="Filter by court" value={filterCourt} onChange={e => setFilterCourt(e.target.value)}
+              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff', color: '#0F172A' }}>
               <option value="all">All courts</option>
               {courts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -365,7 +367,7 @@ export default function AdminBookings() {
           </p>
           {hasActiveFilters && (
             <button onClick={clearFilters}
-              style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+              style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
               Clear filters
             </button>
           )}
@@ -384,7 +386,7 @@ export default function AdminBookings() {
 
                 {isCancelRequest && (
                   <div style={{ background: '#FEE2E2', padding: '6px 16px', borderBottom: '0.5px solid #FECACA' }}>
-                    <p style={{ fontSize: '11px', color: '#DC2626', fontWeight: '600', margin: 0 }}>⚠️ Cancellation requested — action required</p>
+                    <p style={{ fontSize: '11px', color: '#B91C1C', fontWeight: '600', margin: 0 }}>⚠️ Cancellation requested — action required</p>
                   </div>
                 )}
 
@@ -399,7 +401,7 @@ export default function AdminBookings() {
                         <p style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', margin: '0 0 2px' }}>{customerName}</p>
                         <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 2px' }}>📱 {customerPhone}</p>
                         {booking.slot && (
-                          <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>
+                          <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>
                             📅 {booking.slot.slot_date} · {booking.slot.start_time?.slice(0,5)} - {booking.slot.end_time?.slice(0,5)}{hoursLabel(booking.slot.hours)} · {COURT_TYPE_LABELS[booking.slot.court_type] || ''} · {booking.court?.name || ''}
                           </p>
                         )}
@@ -407,56 +409,56 @@ export default function AdminBookings() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: '14px', fontWeight: '700', color: '#1B6B3A', margin: '0 0 3px' }}>
+                        <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--ag-primary)', margin: '0 0 3px' }}>
                           LKR {booking.total_lkr?.toLocaleString()}
                         </p>
                         <span style={{ fontSize: '10px', background: st.bg, color: st.color, padding: '2px 8px', borderRadius: '20px', fontWeight: '600' }}>
                           {st.label}
                         </span>
                       </div>
-                      <span style={{ fontSize: '16px', color: '#94A3B8' }}>{isExpanded ? '▲' : '▼'}</span>
+                      <span style={{ fontSize: '16px', color: '#64748B' }}>{isExpanded ? '▲' : '▼'}</span>
                     </div>
                   </div>
                 </div>
 
                 {isExpanded && (
                   <div style={{ borderTop: '0.5px solid #F1F5F9', padding: '16px 20px', background: '#F8FAFC' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '16px' }}>
                       <div>
-                        <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>BOOKING ID</p>
+                        <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>BOOKING ID</p>
                         <p style={{ fontSize: '12px', color: '#0F172A', margin: 0, fontFamily: 'monospace' }}>{booking.id.slice(0,8)}...</p>
                       </div>
                       <div>
-                        <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>PHONE</p>
+                        <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>PHONE</p>
                         <p style={{ fontSize: '12px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{customerPhone}</p>
                       </div>
                       <div>
-                        <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>BOOKED AT</p>
+                        <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>BOOKED AT</p>
                         <p style={{ fontSize: '12px', color: '#0F172A', margin: 0 }}>
                           {new Date(booking.created_at).toLocaleString('en-US', { timeZone: 'Asia/Colombo' })}
                         </p>
                       </div>
                       {booking.payhere_payment_id && (
                         <div>
-                          <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>PAYMENT REF</p>
+                          <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>PAYMENT REF</p>
                           <p style={{ fontSize: '12px', color: '#0F172A', margin: 0, fontFamily: 'monospace' }}>{booking.payhere_payment_id}</p>
                         </div>
                       )}
                       {booking.cancellation_reason && (
                         <div style={{ gridColumn: 'span 3' }}>
-                          <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>CANCELLATION REASON</p>
-                          <p style={{ fontSize: '12px', color: '#DC2626', margin: 0 }}>{booking.cancellation_reason}</p>
+                          <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>CANCELLATION REASON</p>
+                          <p style={{ fontSize: '12px', color: '#B91C1C', margin: 0 }}>{booking.cancellation_reason}</p>
                         </div>
                       )}
                       {booking.refund_amount_lkr && (
                         <div>
-                          <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>REFUND AMOUNT</p>
-                          <p style={{ fontSize: '12px', color: '#1B6B3A', fontWeight: '700', margin: 0 }}>LKR {booking.refund_amount_lkr.toLocaleString()}</p>
+                          <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>REFUND AMOUNT</p>
+                          <p style={{ fontSize: '12px', color: 'var(--ag-primary)', fontWeight: '700', margin: 0 }}>LKR {booking.refund_amount_lkr.toLocaleString()}</p>
                         </div>
                       )}
                       {booking.refund && (
                         <div style={{ gridColumn: 'span 2' }}>
-                          <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>REFUND STATUS</p>
+                          <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>REFUND STATUS</p>
                           <p style={{ fontSize: '12px', fontWeight: '700', margin: '0 0 6px', color: booking.refund.status === 'completed' ? '#065F46' : '#92400E' }}>
                             {booking.refund.status.toUpperCase()}{booking.refund.bank_reference ? ` · ref ${booking.refund.bank_reference}` : ''}
                           </p>
@@ -483,7 +485,7 @@ export default function AdminBookings() {
                     </div>
 
                     {booking.status === 'cancellation_requested' && (
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <button onClick={() => rejectCancel(booking)} disabled={processing === booking.id}
                           style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                           Reject — Keep Booking

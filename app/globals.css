@@ -3,10 +3,24 @@
 /* ArenaGrade design tokens. Pages use these via var(--ag-*) where updated;
    older inline styles use the same literal values. */
 :root {
-  --ag-green: #1B6B3A;        /* primary actions, prices */
-  --ag-green-dark: #0B2818;   /* hero / headers */
-  --ag-green-accent: #4ADE80; /* highlights on dark */
-  --ag-green-soft: #ECFDF5;
+  /* ── Brand (from the ArenaGrade logo: navy + steel grey) ──
+     Contrast on white: primary 11.6:1, primary-hover 8.9:1 (AA/AAA for text). */
+  --ag-primary: #1D3A5A;         /* buttons, links, selected states */
+  --ag-primary-hover: #2A4D73;
+  --ag-primary-deep: #12263D;    /* hero, admin sidebar, dark panels */
+  --ag-ink: #0B1726;             /* footer */
+  --ag-primary-soft: #EAF0F7;    /* tinted backgrounds, chips */
+  --ag-primary-soft-border: #C9D6E6;
+  --ag-accent: #A9C9EE;          /* highlights ON DARK only (8.9:1 on primary-deep) */
+  --ag-accent-soft: #D6E4F5;     /* secondary text on dark */
+  --ag-logo-grey: #A0A6AC;       /* decorative on navy only; never text on white (2.4:1) */
+
+  /* ── Status (meaning, not brand): green = available / success ── */
+  --ag-success: #047857;
+  --ag-success-bg: #ECFDF5;
+  --ag-success-border: #6EE7B7;
+  --ag-success-text: #065F46;
+
   --ag-bg: #F8FAFC;
   --ag-surface: #FFFFFF;
   --ag-border: #E2E8F0;
@@ -17,6 +31,8 @@
   --ag-red-bg: #FEF2F2;   --ag-red-text: #991B1B;
   --ag-blue-bg: #EFF6FF;  --ag-blue-text: #1D4ED8;
   --ag-radius: 12px;
+  --ag-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --ag-shadow-md: 0 6px 24px rgba(15, 23, 42, 0.08);
   --ag-focus: #2563EB;
 
   --background: var(--ag-bg);
@@ -60,7 +76,7 @@ button:disabled { cursor: not-allowed; }
 
 .ag-skip-link {
   position: absolute; left: 8px; top: -48px; z-index: 1000;
-  background: var(--ag-green-dark); color: #fff; padding: 10px 14px; border-radius: 8px;
+  background: var(--ag-primary-deep); color: #fff; padding: 10px 14px; border-radius: 8px;
   font-weight: 600; text-decoration: none;
 }
 .ag-skip-link:focus { top: 8px; }
@@ -77,3 +93,71 @@ button:disabled { cursor: not-allowed; }
     scroll-behavior: auto !important;
   }
 }
+
+/* Focus ring that stays visible on dark (navy) surfaces. */
+.ag-on-dark :where(a, button, input, select, [tabindex]):focus-visible { outline-color: var(--ag-accent); }
+
+/* ── Buttons: one consistent set with hover / active / disabled states ── */
+.ag-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px; padding: 0 16px; border-radius: 10px;
+  font: inherit; font-size: 14px; font-weight: 600; line-height: 1; text-decoration: none;
+  border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.ag-btn svg { flex-shrink: 0; }
+.ag-btn-sm { min-height: 34px; padding: 0 12px; font-size: 13px; border-radius: 8px; }
+.ag-btn-primary { background: var(--ag-primary); color: #fff; box-shadow: var(--ag-shadow-sm); }
+.ag-btn-primary:hover { background: var(--ag-primary-hover); }
+.ag-btn-secondary { background: #fff; color: var(--ag-primary); border-color: var(--ag-primary-soft-border); }
+.ag-btn-secondary:hover { background: var(--ag-primary-soft); border-color: var(--ag-primary); }
+.ag-btn-ghost { background: transparent; color: var(--ag-text-muted); }
+.ag-btn-ghost:hover { background: #F1F5F9; color: var(--ag-text); }
+.ag-btn-danger-ghost { background: transparent; color: #B91C1C; }
+.ag-btn-danger-ghost:hover { background: #FEF2F2; }
+.ag-btn:disabled, .ag-btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; }
+
+/* Buttons on dark (navy) surfaces */
+.ag-btn-on-dark { background: rgba(255,255,255,0.08); color: #fff; border-color: rgba(255,255,255,0.16); }
+.ag-btn-on-dark:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.28); }
+.ag-btn-accent { background: var(--ag-accent); color: var(--ag-primary-deep); }
+.ag-btn-accent:hover { background: #C3DAF4; }
+
+/* ── Account menu (header) ── */
+.ag-menu { position: absolute; right: 0; top: calc(100% + 8px); min-width: 220px; background: #fff;
+  border: 1px solid var(--ag-border); border-radius: 12px; box-shadow: var(--ag-shadow-md); padding: 6px; z-index: 50; }
+.ag-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 8px;
+  font: inherit; font-size: 14px; color: var(--ag-text); text-decoration: none; background: none; border: 0; cursor: pointer; text-align: left; }
+.ag-menu-item:hover { background: var(--ag-primary-soft); }
+.ag-menu-item svg { color: var(--ag-text-subtle); }
+.ag-menu-sep { height: 1px; background: var(--ag-border); margin: 6px 4px; }
+
+/* ── Admin navigation ── */
+.ag-admin-link { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; margin-bottom: 2px;
+  color: rgba(255,255,255,0.78); font-size: 14px; font-weight: 500; text-decoration: none; position: relative;
+  transition: background-color .15s ease, color .15s ease; }
+.ag-admin-link:hover { background: rgba(255,255,255,0.07); color: #fff; }
+.ag-admin-link[aria-current="page"] { background: rgba(169,201,238,0.14); color: #fff; font-weight: 600; }
+.ag-admin-link[aria-current="page"]::before { content: ""; position: absolute; left: -8px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--ag-accent); }
+.ag-admin-link svg { opacity: .9; }
+
+/* ── Responsive helpers ── */
+@media (max-width: 640px) { .ag-hide-sm { display: none !important; } }
+
+/* ── Admin shell: fixed sidebar on desktop, top bar + drawer on small screens ── */
+.ag-admin-sidebar { width: 248px; background: var(--ag-primary-deep); position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;
+  display: flex; flex-direction: column; color: #fff; }
+.ag-admin-main { margin-left: 248px; min-height: 100vh; min-width: 0; }
+.ag-admin-topbar { display: none; }
+.ag-admin-scrim { display: none; }
+@media (max-width: 900px) {
+  .ag-admin-sidebar { transform: translateX(-100%); visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s; box-shadow: none; }
+  .ag-admin-sidebar[data-open="true"] { transform: none; visibility: visible; transition: transform .2s ease; box-shadow: 0 20px 50px rgba(11,23,38,0.35); }
+  .ag-admin-main { margin-left: 0; }
+  .ag-admin-topbar { display: flex; position: sticky; top: 0; z-index: 30; height: 56px; align-items: center; gap: 10px;
+    padding: 0 12px; background: var(--ag-primary-deep); color: #fff; }
+  .ag-admin-scrim[data-open="true"] { display: block; position: fixed; inset: 0; background: rgba(11,23,38,0.5); z-index: 35; }
+}
+@media (prefers-reduced-motion: reduce) { .ag-admin-sidebar { transition: none; } }
+.ag-admin-close { display: none !important; }
+@media (max-width: 900px) { .ag-admin-close { display: inline-flex !important; margin-left: auto; } }

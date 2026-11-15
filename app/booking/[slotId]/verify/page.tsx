@@ -128,8 +128,8 @@ export default function VerifyPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{
                   width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700',
-                  background: i === 0 ? '#ECFDF5' : i === 1 ? '#1B6B3A' : '#E2E8F0',
-                  color: i === 0 ? '#1B6B3A' : i === 1 ? '#fff' : '#94A3B8'
+                  background: i === 0 ? '#ECFDF5' : i === 1 ? 'var(--ag-primary)' : '#E2E8F0',
+                  color: i === 0 ? 'var(--ag-primary)' : i === 1 ? '#fff' : '#94A3B8'
                 }}>
                   {i === 0 ? '✓' : i + 1}
                 </div>
@@ -166,28 +166,28 @@ export default function VerifyPage() {
                     onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); setError('') }}
                     placeholder="07XXXXXXXX"
                     maxLength={10}
-                    style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 12px', fontSize: '14px', color: '#0F172A', background: 'transparent' }}
+                    style={{ flex: 1, border: 'none', padding: '10px 12px', fontSize: '14px', color: '#0F172A', background: 'transparent' }}
                   />
                 </div>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '5px 0 0' }}>Must start with 07 and be 10 digits</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '5px 0 0' }}>Must start with 07 and be 10 digits</p>
               </div>
 
               {error && (
                 <div style={{ background: '#FEE2E2', border: '0.5px solid #FECACA', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px' }}>
-                  <p style={{ fontSize: '13px', color: '#DC2626', margin: 0 }}>{error}</p>
+                  <p style={{ fontSize: '13px', color: '#B91C1C', margin: 0 }}>{error}</p>
                 </div>
               )}
 
               <button
                 onClick={sendOtp}
                 disabled={loading || phone.length < 10}
-                style={{ width: '100%', background: loading || phone.length < 10 ? '#94A3B8' : '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '14px', fontWeight: '600', cursor: loading || phone.length < 10 ? 'not-allowed' : 'pointer' }}
+                style={{ width: '100%', background: loading || phone.length < 10 ? '#94A3B8' : 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '14px', fontWeight: '600', cursor: loading || phone.length < 10 ? 'not-allowed' : 'pointer' }}
               >
                 {loading ? 'Checking...' : 'Send verification code'}
               </button>
 
               {/* Rate limit info */}
-              <p style={{ textAlign: 'center', fontSize: '11px', color: '#94A3B8', marginTop: '12px', marginBottom: 0 }}>
+              <p style={{ textAlign: 'center', fontSize: '11px', color: '#64748B', marginTop: '12px', marginBottom: 0 }}>
                 Maximum 3 OTP requests per 10 minutes
               </p>
             </>
@@ -211,20 +211,20 @@ export default function VerifyPage() {
                   onChange={e => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setError('') }}
                   placeholder="000000"
                   maxLength={6}
-                  style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '12px', fontSize: '22px', fontWeight: '700', color: '#0F172A', outline: 'none', textAlign: 'center', letterSpacing: '0.3em', boxSizing: 'border-box' }}
+                  style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '12px', fontSize: '22px', fontWeight: '700', color: '#0F172A', textAlign: 'center', letterSpacing: '0.3em', boxSizing: 'border-box' }}
                 />
               </div>
 
               {error && (
                 <div style={{ background: '#FEE2E2', border: '0.5px solid #FECACA', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px' }}>
-                  <p style={{ fontSize: '13px', color: '#DC2626', margin: 0 }}>{error}</p>
+                  <p style={{ fontSize: '13px', color: '#B91C1C', margin: 0 }}>{error}</p>
                 </div>
               )}
 
               <button
                 onClick={verifyOtp}
                 disabled={loading || otp.length !== 6}
-                style={{ width: '100%', background: loading || otp.length !== 6 ? '#94A3B8' : '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '14px', fontWeight: '600', cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer', marginBottom: '14px' }}
+                style={{ width: '100%', background: loading || otp.length !== 6 ? '#94A3B8' : 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '14px', fontWeight: '600', cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer', marginBottom: '14px' }}
               >
                 {loading ? 'Verifying...' : 'Verify and continue'}
               </button>
@@ -239,7 +239,7 @@ export default function VerifyPage() {
                 <button
                   onClick={() => { setOtp(''); setError(''); sendOtp() }}
                   disabled={resendCooldown > 0}
-                  style={{ background: 'none', border: 'none', fontSize: '13px', color: resendCooldown > 0 ? '#94A3B8' : '#1B6B3A', cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer', padding: 0, fontWeight: '500' }}
+                  style={{ background: 'none', border: 'none', fontSize: '13px', color: resendCooldown > 0 ? '#94A3B8' : 'var(--ag-primary)', cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer', padding: 0, fontWeight: '500' }}
                 >
                   {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
                 </button>
@@ -248,7 +248,7 @@ export default function VerifyPage() {
           )}
         </div>
 
-        <p style={{ textAlign: 'center', fontSize: '11px', color: '#94A3B8', marginTop: '16px' }}>
+        <p style={{ textAlign: 'center', fontSize: '11px', color: '#64748B', marginTop: '16px' }}>
           🔒 Your number is only used for booking confirmations
         </p>
       </div>

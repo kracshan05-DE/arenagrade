@@ -182,7 +182,7 @@ export default function MyBookingsPage() {
                 <p style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', margin: '0 0 3px' }}>{booking.court?.name || 'Court'}</p>
                 <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 2px' }}>📍 {booking.court?.locations?.name || ''}</p>
                 {booking.slot && (
-                  <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0 }}>
+                  <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>
                     📅 {formatDate(booking.slot.slot_date)} · {booking.slot.start_time?.slice(0,5)} - {booking.slot.end_time?.slice(0,5)} · {COURT_TYPE_LABELS[booking.slot.court_type] || ''}
                   </p>
                 )}
@@ -190,10 +190,10 @@ export default function MyBookingsPage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '15px', fontWeight: '800', color: '#1B6B3A', margin: '0 0 4px' }}>LKR {booking.total_lkr?.toLocaleString()}</p>
+                <p style={{ fontSize: '15px', fontWeight: '800', color: 'var(--ag-primary)', margin: '0 0 4px' }}>LKR {booking.total_lkr?.toLocaleString()}</p>
                 <span style={{ fontSize: '11px', background: st.bg, color: st.color, padding: '3px 10px', borderRadius: '20px', fontWeight: '600' }}>{st.icon} {st.label}</span>
               </div>
-              <span style={{ fontSize: '16px', color: '#94A3B8' }}>{isExpanded ? '▲' : '▼'}</span>
+              <span style={{ fontSize: '16px', color: '#64748B' }}>{isExpanded ? '▲' : '▼'}</span>
             </div>
           </div>
         </div>
@@ -202,31 +202,31 @@ export default function MyBookingsPage() {
           <div style={{ borderTop: '0.5px solid #F1F5F9', padding: '16px 20px', background: '#F8FAFC' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
               <div>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>BOOKING REF</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>BOOKING REF</p>
                 <p style={{ fontSize: '12px', color: '#0F172A', margin: 0, fontFamily: 'monospace' }}>{booking.payhere_payment_id || booking.id.slice(0,8) + '...'}</p>
               </div>
               <div>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>BOOKED ON</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>BOOKED ON</p>
                 <p style={{ fontSize: '12px', color: '#0F172A', margin: 0 }}>{new Date(booking.created_at).toLocaleString('en-US', { timeZone: 'Asia/Colombo' })}</p>
               </div>
               <div>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>SPORT</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>SPORT</p>
                 <p style={{ fontSize: '12px', color: '#0F172A', margin: 0 }}>{booking.court?.sport_types?.name || 'Basketball'}</p>
               </div>
               <div>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>AMOUNT PAID</p>
-                <p style={{ fontSize: '12px', fontWeight: '700', color: '#1B6B3A', margin: 0 }}>LKR {booking.total_lkr?.toLocaleString()}</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>AMOUNT PAID</p>
+                <p style={{ fontSize: '12px', fontWeight: '700', color: 'var(--ag-primary)', margin: 0 }}>LKR {booking.total_lkr?.toLocaleString()}</p>
               </div>
               {booking.cancellation_reason && (
                 <div style={{ gridColumn: 'span 2' }}>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>CANCELLATION REASON</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>CANCELLATION REASON</p>
                   <p style={{ fontSize: '12px', color: '#92400E', margin: 0 }}>{booking.cancellation_reason}</p>
                 </div>
               )}
               {booking.refund_amount_lkr && (
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>REFUND AMOUNT</p>
-                  <p style={{ fontSize: '12px', fontWeight: '700', color: '#1B6B3A', margin: 0 }}>LKR {booking.refund_amount_lkr.toLocaleString()}</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>REFUND AMOUNT</p>
+                  <p style={{ fontSize: '12px', fontWeight: '700', color: 'var(--ag-primary)', margin: 0 }}>LKR {booking.refund_amount_lkr.toLocaleString()}</p>
                 </div>
               )}
             </div>
@@ -235,7 +235,7 @@ export default function MyBookingsPage() {
               <div>
                 {!isCancelling ? (
                   <button onClick={() => { setCancellingId(booking.id); setCancelReason('') }}
-                    style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+                    style={{ background: '#FEE2E2', color: '#B91C1C', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                     Request cancellation
                   </button>
                 ) : (
@@ -245,7 +245,7 @@ export default function MyBookingsPage() {
                     <textarea value={cancelReason} onChange={e => { setCancelReason(e.target.value); setMessage('') }}
                       placeholder="e.g. I have an unexpected commitment and cannot attend..."
                       rows={3}
-                      style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '10px', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: '10px' }} />
+                      style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '10px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box', marginBottom: '10px' }} />
                     <div style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
                       <p style={{ fontSize: '12px', color: '#92400E', margin: '0 0 3px', fontWeight: '600' }}>Refund policy</p>
                       <p style={{ fontSize: '12px', color: '#92400E', margin: 0 }}>
@@ -306,7 +306,7 @@ export default function MyBookingsPage() {
 
         {fetchError && (
           <div style={{ background: '#FEE2E2', border: '0.5px solid #FECACA', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <p style={{ fontSize: '13px', color: '#DC2626', margin: 0 }}>{fetchError}</p>
+            <p style={{ fontSize: '13px', color: '#B91C1C', margin: 0 }}>{fetchError}</p>
             <button onClick={() => window.location.reload()}
               style={{ background: '#DC2626', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: '12px' }}>
               Retry
@@ -325,7 +325,7 @@ export default function MyBookingsPage() {
             <div style={{ fontSize: '40px', marginBottom: '12px' }}>📅</div>
             <p style={{ fontSize: '15px', fontWeight: '500', color: '#0F172A', margin: '0 0 4px' }}>No bookings yet</p>
             <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 20px' }}>Book your first court and it will appear here</p>
-            <a href="/#book" style={{ background: '#1B6B3A', color: '#fff', padding: '10px 24px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+            <a href="/#book" style={{ background: 'var(--ag-primary)', color: '#fff', padding: '10px 24px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
               Find a court
             </a>
           </div>
@@ -333,13 +333,13 @@ export default function MyBookingsPage() {
           <div>
             {upcomingBookings.length > 0 && (
               <div style={{ marginBottom: '28px' }}>
-                <p style={{ fontSize: '12px', color: '#1B6B3A', fontWeight: '700', letterSpacing: '0.06em', margin: '0 0 12px' }}>UPCOMING</p>
+                <p style={{ fontSize: '12px', color: 'var(--ag-primary)', fontWeight: '700', letterSpacing: '0.06em', margin: '0 0 12px' }}>UPCOMING</p>
                 {upcomingBookings.map(renderBookingCard)}
               </div>
             )}
             {pastBookings.length > 0 && (
               <div>
-                <p style={{ fontSize: '12px', color: '#94A3B8', fontWeight: '700', letterSpacing: '0.06em', margin: '0 0 12px' }}>PAST & OTHER BOOKINGS</p>
+                <p style={{ fontSize: '12px', color: '#64748B', fontWeight: '700', letterSpacing: '0.06em', margin: '0 0 12px' }}>PAST & OTHER BOOKINGS</p>
                 {pastBookings.map(renderBookingCard)}
               </div>
             )}

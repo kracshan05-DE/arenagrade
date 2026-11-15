@@ -151,7 +151,7 @@ export default function PaymentPage() {
     return date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   }
 
-  const timerColor = timeLeft < 120 ? '#DC2626' : timeLeft < 300 ? '#D97706' : '#1B6B3A'
+  const timerColor = timeLeft < 120 ? '#DC2626' : timeLeft < 300 ? '#D97706' : 'var(--ag-primary)'
   const timerBg = timeLeft < 120 ? '#FEE2E2' : timeLeft < 300 ? '#FFFBEB' : '#ECFDF5'
   const timerBorder = timeLeft < 120 ? '#FECACA' : timeLeft < 300 ? '#FDE68A' : '#6EE7B7'
 
@@ -233,7 +233,7 @@ export default function PaymentPage() {
             <p style={{ fontSize: '14px', color: '#475569', margin: '0 0 18px' }}>Your booking is confirmed. There is nothing more to pay.</p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <a href="/my-bookings" className="ag-tap"
-                style={{ display: 'inline-flex', alignItems: 'center', background: '#1B6B3A', color: '#fff', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
+                style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--ag-primary)', color: '#fff', borderRadius: '8px', padding: '10px 20px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
                 My Bookings
               </a>
               {courtId && (
@@ -258,7 +258,7 @@ export default function PaymentPage() {
             <div style={{ fontSize: '40px', marginBottom: '12px' }}>⏱</div>
             <p style={{ fontSize: '15px', fontWeight: '600', color: '#0F172A', marginBottom: '8px' }}>{error}</p>
             <a href={courtId ? `/courts/${courtId}` : '/'}
-              style={{ display: 'inline-block', background: '#1B6B3A', color: '#fff', borderRadius: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: '600', textDecoration: 'none', marginTop: '8px' }}>
+              style={{ display: 'inline-block', background: 'var(--ag-primary)', color: '#fff', borderRadius: '8px', padding: '10px 24px', fontSize: '14px', fontWeight: '600', textDecoration: 'none', marginTop: '8px' }}>
               {courtId ? 'Back to court' : 'Find a court'}
             </a>
           </div>
@@ -296,7 +296,7 @@ export default function PaymentPage() {
             <p style={{ fontSize: '22px', fontWeight: '800', color: timerColor, margin: 0, letterSpacing: '0.04em' }}>{formatTime(timeLeft)}</p>
           </div>
           {timeLeft < 120 && (
-            <span style={{ fontSize: '12px', color: '#DC2626', fontWeight: '600', background: '#FEE2E2', padding: '3px 8px', borderRadius: '20px' }}>Hurry!</span>
+            <span style={{ fontSize: '12px', color: '#B91C1C', fontWeight: '600', background: '#FEE2E2', padding: '3px 8px', borderRadius: '20px' }}>Hurry!</span>
           )}
         </div>
       )}
@@ -311,8 +311,8 @@ export default function PaymentPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{
                   width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700',
-                  background: i < 2 ? '#ECFDF5' : '#1B6B3A',
-                  color: i < 2 ? '#1B6B3A' : '#fff',
+                  background: i < 2 ? '#ECFDF5' : 'var(--ag-primary)',
+                  color: i < 2 ? 'var(--ag-primary)' : '#fff',
                 }}>
                   {i < 2 ? '✓' : '3'}
                 </div>
@@ -326,7 +326,7 @@ export default function PaymentPage() {
         {/* Booking Summary */}
         {slot && court && (
           <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '14px' }}>
-            <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>BOOKING SUMMARY</p>
+            <p style={{ fontSize: '11px', color: '#64748B', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>BOOKING SUMMARY</p>
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
               <div style={{ width: '48px', height: '48px', background: '#ECFDF5', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>🏀</div>
               <div>
@@ -337,30 +337,30 @@ export default function PaymentPage() {
             <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Date</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Date</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{formatDate(slot.slot_date)}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Time</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Time</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{(group[0] ?? slot).start_time.slice(0,5)} - {(group[group.length - 1] ?? slot).end_time.slice(0,5)}{group.length > 1 ? ` (${group.length} hours)` : ''}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Court type</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Court type</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{COURT_TYPE_LABELS[slot.court_type]}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Sport</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Sport</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{court.sport_types.name}</p>
                 </div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '14px', borderTop: '0.5px solid #F1F5F9' }}>
               <div>
-                <p style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 2px' }}>Total amount</p>
-                <p style={{ fontSize: '28px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>LKR {total.toLocaleString()}</p>
+                <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 2px' }}>Total amount</p>
+                <p style={{ fontSize: '28px', fontWeight: '800', color: 'var(--ag-primary)', margin: 0 }}>LKR {total.toLocaleString()}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 2px' }}>Payment via</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 2px' }}>Payment via</p>
                 <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>PayHere</p>
               </div>
             </div>
@@ -370,7 +370,7 @@ export default function PaymentPage() {
         {/* Customer Details */}
         {profile && (
           <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '14px' }}>
-            <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>YOUR DETAILS</p>
+            <p style={{ fontSize: '11px', color: '#64748B', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>YOUR DETAILS</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               <div>
                 {needsName ? (
@@ -381,7 +381,7 @@ export default function PaymentPage() {
                         onChange={(e) => { setNameInput(e.target.value); setNameError('') }}
                         style={{ flex: 1, minWidth: 0, border: '1px solid #94A3B8', borderRadius: '8px', padding: '8px 10px', fontSize: '15px' }} />
                       <button onClick={saveName} disabled={nameSaving} className="ag-tap"
-                        style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '0 14px', fontSize: '14px', fontWeight: 600, cursor: nameSaving ? 'wait' : 'pointer' }}>
+                        style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '0 14px', fontSize: '14px', fontWeight: 600, cursor: nameSaving ? 'wait' : 'pointer' }}>
                         {nameSaving ? 'Saving…' : 'Save'}
                       </button>
                     </div>
@@ -389,17 +389,17 @@ export default function PaymentPage() {
                   </div>
                 ) : (
                   <>
-                    <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Name</p>
+                    <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Name</p>
                     <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{profile.full_name}</p>
                   </>
                 )}
               </div>
               <div>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Phone</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Phone</p>
                 <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{profile.phone}</p>
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Email</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Email</p>
                 <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{user?.email}</p>
               </div>
             </div>
@@ -408,7 +408,7 @@ export default function PaymentPage() {
 
         {/* Payment Methods */}
         <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '14px' }}>
-          <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>ACCEPTED PAYMENT METHODS</p>
+          <p style={{ fontSize: '11px', color: '#64748B', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>ACCEPTED PAYMENT METHODS</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {['💳 Visa / Mastercard', '📱 eZ Cash', '📱 FriMi', '📱 mCash', '🏦 Internet Banking'].map(method => (
               <span key={method} style={{ fontSize: '12px', background: '#F8FAFC', border: '0.5px solid #E2E8F0', color: '#475569', padding: '6px 12px', borderRadius: '8px' }}>{method}</span>
@@ -432,7 +432,7 @@ export default function PaymentPage() {
             onClick={startPayment}
             disabled={blocked}
             style={{
-              width: '100%', background: blocked ? '#94A3B8' : '#1B6B3A',
+              width: '100%', background: blocked ? '#94A3B8' : 'var(--ag-primary)',
               color: '#fff', border: 'none', borderRadius: '12px', padding: '16px',
               fontSize: '16px', fontWeight: '700', cursor: blocked ? 'not-allowed' : 'pointer',
               marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
@@ -445,7 +445,7 @@ export default function PaymentPage() {
             <p style={{ fontSize: '12px', color: '#92400E', margin: '0 0 10px', fontWeight: '600' }}>TEST ENVIRONMENT — simulated payment (not available on the live site)</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => simulate('success')} disabled={processing}
-                style={{ flex: 1, background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontWeight: 600, cursor: 'pointer' }}>
+                style={{ flex: 1, background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontWeight: 600, cursor: 'pointer' }}>
                 Simulate success
               </button>
               <button onClick={() => simulate('failed')} disabled={processing}
@@ -463,13 +463,13 @@ export default function PaymentPage() {
           </button>
         )}
 
-        <p style={{ textAlign: 'center', fontSize: '12px', color: '#94A3B8', margin: '0 0 20px' }}>
+        <p style={{ textAlign: 'center', fontSize: '12px', color: '#64748B', margin: '0 0 20px' }}>
           Your booking is confirmed only after PayHere confirms the payment, within your 10-minute reservation.
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
           {['🔒 SSL Secured', '✅ CBSL Approved', '📱 Instant SMS'].map(item => (
-            <span key={item} style={{ fontSize: '11px', color: '#94A3B8' }}>{item}</span>
+            <span key={item} style={{ fontSize: '11px', color: '#64748B' }}>{item}</span>
           ))}
         </div>
       </div>
