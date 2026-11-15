@@ -99,7 +99,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 4vw, 32px)' }}>
 
       {/* Header */}
       <div style={{ marginBottom: '28px' }}>
@@ -112,17 +112,17 @@ export default function AdminDashboard() {
       <BookingModeControl />
 
       {/* Overall stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '28px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '28px' }}>
         {[
           { label: 'Total Bookings', value: totalBookings, icon: '📊', color: '#7C3AED', bg: '#F5F3FF' },
           { label: 'Total Revenue', value: `LKR ${totalRevenue.toLocaleString()}`, icon: '💵', color: '#B45309', bg: '#FEF3C7' },
-          { label: 'Pending Cancellations', value: pendingCancellations, icon: '⚠️', color: '#DC2626', bg: '#FEE2E2', alert: pendingCancellations > 0 },
+          { label: 'Pending Cancellations', value: pendingCancellations, icon: '⚠️', color: '#B91C1C', bg: '#FEE2E2', alert: pendingCancellations > 0 },
         ].map((card: any) => (
           <div key={card.label} style={{ background: '#fff', borderRadius: '12px', border: `0.5px solid ${card.alert ? '#FECACA' : '#E2E8F0'}`, padding: '18px', position: 'relative', overflow: 'hidden' }}>
             {card.alert && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: '#DC2626' }} />}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <div>
-                <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 8px' }}>{card.label.toUpperCase()}</p>
+                <p style={{ fontSize: '11px', color: '#64748B', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 8px' }}>{card.label.toUpperCase()}</p>
                 <p style={{ fontSize: '22px', fontWeight: '800', color: card.color, margin: 0 }}>{card.value}</p>
               </div>
               <div style={{ width: '36px', height: '36px', background: card.bg, borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
@@ -130,7 +130,7 @@ export default function AdminDashboard() {
               </div>
             </div>
             {card.alert && (
-              <a href="/admin/bookings" style={{ fontSize: '11px', color: '#DC2626', textDecoration: 'none', fontWeight: '600', display: 'block', marginTop: '8px' }}>Review now →</a>
+              <a href="/admin/bookings" style={{ fontSize: '11px', color: '#B91C1C', textDecoration: 'none', fontWeight: '600', display: 'block', marginTop: '8px' }}>Review now →</a>
             )}
           </div>
         ))}
@@ -145,9 +145,10 @@ export default function AdminDashboard() {
           </div>
           <input
             type="date"
+            aria-label="Breakdown date"
             value={selectedDate}
             onChange={e => setSelectedDate(e.target.value)}
-            style={{ border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '7px 10px', fontSize: '13px', color: '#0F172A', outline: 'none' }}
+            style={{ border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '7px 10px', fontSize: '13px', color: '#0F172A' }}
           />
         </div>
 
@@ -155,17 +156,17 @@ export default function AdminDashboard() {
           <p style={{ color: '#64748B', fontSize: '13px', textAlign: 'center', padding: '20px' }}>Loading...</p>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: '10px', marginBottom: '16px' }}>
               {[
                 { label: 'Total Slots', value: dayStats.total, color: '#0F172A', bg: '#F8FAFC' },
                 { label: 'Available', value: dayStats.available, color: '#065F46', bg: '#ECFDF5' },
                 { label: 'Booked', value: dayStats.booked, color: '#1D4ED8', bg: '#EFF6FF' },
                 { label: 'Reserved', value: dayStats.reserved, color: '#92400E', bg: '#FFFBEB' },
-                { label: 'Blocked', value: dayStats.blocked, color: '#64748B', bg: '#F1F5F9' },
+                { label: 'Blocked', value: dayStats.blocked, color: '#475569', bg: '#F1F5F9' },
               ].map(stat => (
                 <div key={stat.label} style={{ background: stat.bg, borderRadius: '10px', padding: '14px', textAlign: 'center' }}>
                   <p style={{ fontSize: '24px', fontWeight: '800', color: stat.color, margin: '0 0 4px' }}>{stat.value}</p>
-                  <p style={{ fontSize: '11px', color: stat.color, opacity: 0.7, margin: 0, fontWeight: '500' }}>{stat.label}</p>
+                  <p style={{ fontSize: '11px', color: stat.color, margin: 0, fontWeight: '500' }}>{stat.label}</p>
                 </div>
               ))}
             </div>
@@ -173,7 +174,7 @@ export default function AdminDashboard() {
             <div style={{ background: '#ECFDF5', borderRadius: '10px', padding: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <p style={{ fontSize: '12px', color: '#065F46', margin: '0 0 2px', fontWeight: '500' }}>Revenue for {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                <p style={{ fontSize: '28px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>LKR {dayStats.revenue.toLocaleString()}</p>
+                <p style={{ fontSize: '28px', fontWeight: '800', color: 'var(--ag-primary)', margin: 0 }}>LKR {dayStats.revenue.toLocaleString()}</p>
               </div>
               <div style={{ fontSize: '36px' }}>💰</div>
             </div>
@@ -181,7 +182,7 @@ export default function AdminDashboard() {
             {/* Visual bar */}
             {dayStats.total > 0 && (
               <div style={{ marginTop: '14px' }}>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 6px', fontWeight: '500' }}>SLOT DISTRIBUTION</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 6px', fontWeight: '500' }}>SLOT DISTRIBUTION</p>
                 <div style={{ display: 'flex', height: '12px', borderRadius: '6px', overflow: 'hidden', gap: '2px' }}>
                   {dayStats.booked > 0 && <div style={{ flex: dayStats.booked, background: '#3B82F6', borderRadius: '3px' }} title={`Booked: ${dayStats.booked}`} />}
                   {dayStats.reserved > 0 && <div style={{ flex: dayStats.reserved, background: '#F59E0B', borderRadius: '3px' }} title={`Reserved: ${dayStats.reserved}`} />}
@@ -192,7 +193,7 @@ export default function AdminDashboard() {
                   {[
                     { color: '#3B82F6', label: 'Booked' },
                     { color: '#F59E0B', label: 'Reserved' },
-                    { color: '#94A3B8', label: 'Blocked' },
+                    { color: '#64748B', label: 'Blocked' },
                     { color: '#6EE7B7', label: 'Available' },
                   ].map(l => (
                     <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -230,13 +231,13 @@ export default function AdminDashboard() {
       <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>Recent Bookings</p>
-          <a href="/admin/bookings" style={{ fontSize: '12px', color: '#1B6B3A', textDecoration: 'none', fontWeight: '500' }}>View all →</a>
+          <a href="/admin/bookings" style={{ fontSize: '12px', color: 'var(--ag-primary)', textDecoration: 'none', fontWeight: '500' }}>View all →</a>
         </div>
 
         {loading ? (
           <p style={{ color: '#64748B', fontSize: '13px', textAlign: 'center', padding: '20px' }}>Loading...</p>
         ) : recentBookings.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '32px', color: '#94A3B8' }}>
+          <div style={{ textAlign: 'center', padding: '32px', color: '#64748B' }}>
             <div style={{ fontSize: '32px', marginBottom: '8px' }}>📅</div>
             <p style={{ fontSize: '13px', margin: 0 }}>No bookings yet</p>
           </div>
@@ -252,14 +253,14 @@ export default function AdminDashboard() {
                     </p>
                     <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 1px' }}>📱 {booking.profiles?.phone || 'N/A'}</p>
                     {booking.slots && (
-                      <p style={{ fontSize: '11px', color: '#94A3B8', margin: 0 }}>
+                      <p style={{ fontSize: '11px', color: '#64748B', margin: 0 }}>
                         {booking.slots.slot_date} · {booking.slots.start_time?.slice(0,5)} - {booking.slots.end_time?.slice(0,5)}{hoursLabel(booking.slots.hours)} · {COURT_TYPE_LABELS[booking.slots.court_type] || ''}
                       </p>
                     )}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: '13px', fontWeight: '700', color: '#1B6B3A', margin: '0 0 2px' }}>LKR {booking.total_lkr?.toLocaleString()}</p>
+                  <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--ag-primary)', margin: '0 0 2px' }}>LKR {booking.total_lkr?.toLocaleString()}</p>
                   <span style={{
                     fontSize: '10px', padding: '2px 8px', borderRadius: '20px', fontWeight: '500',
                     background: booking.status === 'confirmed' ? '#ECFDF5' : booking.status === 'cancellation_requested' ? '#FEE2E2' : '#F1F5F9',

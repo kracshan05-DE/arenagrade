@@ -9,7 +9,7 @@ export default function NotFound() {
     }}>
       <div style={{ textAlign: 'center', maxWidth: '440px' }}>
         <div style={{ fontSize: '80px', marginBottom: '8px' }}>🏀</div>
-        <h1 style={{ fontSize: '72px', fontWeight: '900', color: '#1B6B3A', margin: '0 0 8px', letterSpacing: '-4px' }}>404</h1>
+        <h1 style={{ fontSize: '72px', fontWeight: '900', color: 'var(--ag-primary)', margin: '0 0 8px', letterSpacing: '-4px' }}>404</h1>
         <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 10px' }}>
           Out of bounds
         </h2>
@@ -18,7 +18,7 @@ export default function NotFound() {
         </p>
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
           <Link href="/"
-            style={{ background: '#1B6B3A', color: '#fff', borderRadius: '8px', padding: '11px 24px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
+            style={{ background: 'var(--ag-primary)', color: '#fff', borderRadius: '8px', padding: '11px 24px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
             Back to home
           </Link>
           <Link href="/#book"

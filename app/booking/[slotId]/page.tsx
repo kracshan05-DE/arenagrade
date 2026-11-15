@@ -188,7 +188,7 @@ export default function BookingPage() {
     return `${m}:${s}`
   }
 
-  const timerColor = timeLeft < 120 ? '#DC2626' : timeLeft < 300 ? '#D97706' : '#1B6B3A'
+  const timerColor = timeLeft < 120 ? '#DC2626' : timeLeft < 300 ? '#D97706' : 'var(--ag-primary)'
   const timerBg = timeLeft < 120 ? '#FEE2E2' : timeLeft < 300 ? '#FFFBEB' : '#ECFDF5'
   const timerBorder = timeLeft < 120 ? '#FECACA' : timeLeft < 300 ? '#FDE68A' : '#6EE7B7'
 
@@ -231,7 +231,7 @@ export default function BookingPage() {
         <Navbar />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 20px' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid #E2E8F0', borderTopColor: '#1B6B3A', margin: '0 auto 16px', animation: 'spin 0.8s linear infinite' }} />
+            <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid #E2E8F0', borderTopColor: 'var(--ag-primary)', margin: '0 auto 16px', animation: 'spin 0.8s linear infinite' }} />
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             <p style={{ color: '#64748B', fontSize: '14px', margin: 0 }}>Loading booking details...</p>
           </div>
@@ -250,7 +250,7 @@ export default function BookingPage() {
             <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', margin: '0 0 8px' }}>Slot unavailable</h2>
             <p style={{ fontSize: '14px', color: '#64748B', lineHeight: '1.7', margin: '0 0 24px' }}>{error}</p>
             <button onClick={() => router.back()}
-              style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px 28px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+              style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px 28px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
               Go back
             </button>
           </div>
@@ -310,7 +310,7 @@ export default function BookingPage() {
             <p style={{ fontSize: '22px', fontWeight: '800', color: timerColor, margin: 0, letterSpacing: '0.04em' }}>{formatTime(timeLeft)}</p>
           </div>
           {timeLeft < 120 && (
-            <span style={{ fontSize: '12px', color: '#DC2626', fontWeight: '600', background: '#FEE2E2', padding: '3px 8px', borderRadius: '20px' }}>Hurry!</span>
+            <span style={{ fontSize: '12px', color: '#B91C1C', fontWeight: '600', background: '#FEE2E2', padding: '3px 8px', borderRadius: '20px' }}>Hurry!</span>
           )}
         </div>
       )}
@@ -324,7 +324,7 @@ export default function BookingPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{
                   width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700',
-                  background: i === 0 ? '#1B6B3A' : '#E2E8F0',
+                  background: i === 0 ? 'var(--ag-primary)' : '#E2E8F0',
                   color: i === 0 ? '#fff' : '#94A3B8'
                 }}>
                   {i + 1}
@@ -339,7 +339,7 @@ export default function BookingPage() {
         {/* Booking Summary */}
         {slot && court && (
           <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '14px' }}>
-            <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>BOOKING SUMMARY</p>
+            <p style={{ fontSize: '11px', color: '#64748B', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>BOOKING SUMMARY</p>
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
               <div style={{ width: '48px', height: '48px', background: '#ECFDF5', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>🏀</div>
               <div>
@@ -350,30 +350,30 @@ export default function BookingPage() {
             <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Date</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Date</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{formatDate(slot.slot_date)}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Time</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Time</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{slot.start_time.slice(0,5)} - {(group[group.length - 1] ?? slot).end_time.slice(0,5)}{group.length > 1 ? ` (${group.length} hours)` : ''}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Court type</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Court type</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{COURT_TYPE_LABELS[slot.court_type]}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Sport</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Sport</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{court.sport_types.name}</p>
                 </div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '14px', borderTop: '0.5px solid #F1F5F9' }}>
               <div>
-                <p style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 2px' }}>Total amount</p>
-                <p style={{ fontSize: '24px', fontWeight: '800', color: '#1B6B3A', margin: 0 }}>LKR {(group.length ? group.reduce((sum, g) => sum + Number(g.price_lkr), 0) : slot.price_lkr).toLocaleString()}</p>
+                <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 2px' }}>Total amount</p>
+                <p style={{ fontSize: '24px', fontWeight: '800', color: 'var(--ag-primary)', margin: 0 }}>LKR {(group.length ? group.reduce((sum, g) => sum + Number(g.price_lkr), 0) : slot.price_lkr).toLocaleString()}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 2px' }}>Payment via</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 2px' }}>Payment via</p>
                 <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>PayHere</p>
               </div>
             </div>
@@ -409,13 +409,13 @@ export default function BookingPage() {
                 Cancel
               </button>
               <button onClick={lockSlot} disabled={locking}
-                style={{ flex: 2, background: locking ? '#94A3B8' : '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '14px', fontWeight: '600', cursor: locking ? 'not-allowed' : 'pointer' }}>
+                style={{ flex: 2, background: locking ? '#94A3B8' : 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '14px', fontWeight: '600', cursor: locking ? 'not-allowed' : 'pointer' }}>
                 {locking ? 'Reserving...' : 'Reserve and continue'}
               </button>
             </div>
             {error && (
               <div style={{ marginTop: '12px', background: '#FEE2E2', border: '0.5px solid #FECACA', borderRadius: '8px', padding: '10px 14px' }}>
-                <p style={{ fontSize: '13px', color: '#DC2626', margin: 0 }}>{error}</p>
+                <p style={{ fontSize: '13px', color: '#B91C1C', margin: 0 }}>{error}</p>
               </div>
             )}
           </div>
@@ -429,19 +429,19 @@ export default function BookingPage() {
               </div>
             </div>
             <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px' }}>
-              <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>NEXT STEPS</p>
+              <p style={{ fontSize: '11px', color: '#64748B', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 14px' }}>NEXT STEPS</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                  <div style={{ width: '24px', height: '24px', background: '#1B6B3A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>2</div>
+                  <div style={{ width: '24px', height: '24px', background: 'var(--ag-primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>2</div>
                   <div>
                     <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: '0 0 1px' }}>Verify your phone number</p>
                     <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>We will send a one-time code to confirm your number</p>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                  <div style={{ width: '24px', height: '24px', background: '#E2E8F0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: '#94A3B8', flexShrink: 0 }}>3</div>
+                  <div style={{ width: '24px', height: '24px', background: '#E2E8F0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: '#64748B', flexShrink: 0 }}>3</div>
                   <div>
-                    <p style={{ fontSize: '13px', fontWeight: '600', color: '#94A3B8', margin: '0 0 1px' }}>Complete payment via PayHere</p>
+                    <p style={{ fontSize: '13px', fontWeight: '600', color: '#64748B', margin: '0 0 1px' }}>Complete payment via PayHere</p>
                     <p style={{ fontSize: '12px', color: '#CBD5E1', margin: 0 }}>Cards, eZ Cash, FriMi, mCash, internet banking</p>
                   </div>
                 </div>
@@ -452,7 +452,7 @@ export default function BookingPage() {
                   Cancel
                 </button>
                 <a href={`/booking/${slotId}/verify`}
-                  style={{ flex: 2, background: '#1B6B3A', color: '#fff', borderRadius: '8px', padding: '11px', fontSize: '14px', fontWeight: '600', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  style={{ flex: 2, background: 'var(--ag-primary)', color: '#fff', borderRadius: '8px', padding: '11px', fontSize: '14px', fontWeight: '600', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   Verify phone number →
                 </a>
               </div>
@@ -468,7 +468,7 @@ export default function BookingPage() {
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '20px', flexWrap: 'wrap' }}>
           {['🔒 Secure payment', '✅ Instant confirmation', '📱 SMS receipt'].map(item => (
-            <span key={item} style={{ fontSize: '11px', color: '#94A3B8' }}>{item}</span>
+            <span key={item} style={{ fontSize: '11px', color: '#64748B' }}>{item}</span>
           ))}
         </div>
       </div>

@@ -45,7 +45,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
             </p>
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <div style={{ background: '#FEF2F2', border: '0.5px solid #FECACA', borderRadius: '8px', padding: '12px', marginBottom: '20px', textAlign: 'left' }}>
-                <p style={{ fontSize: '11px', color: '#DC2626', fontFamily: 'monospace', margin: 0, wordBreak: 'break-all' }}>
+                <p style={{ fontSize: '11px', color: '#B91C1C', fontFamily: 'monospace', margin: 0, wordBreak: 'break-all' }}>
                   {this.state.error.message}
                 </p>
               </div>
@@ -53,7 +53,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
               <button
                 onClick={() => window.location.reload()}
-                style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px 24px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+                style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px 24px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
               >
                 Refresh page
               </button>

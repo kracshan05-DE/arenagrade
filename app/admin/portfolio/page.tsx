@@ -101,14 +101,14 @@ export default function AdminPortfolio() {
   }
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 4vw, 32px)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px' }}>Court Portfolio</h1>
           <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Showcase courts built by ArenaGrade</p>
         </div>
         <button onClick={openAdd}
-          style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+          style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
           + Add Court
         </button>
       </div>
@@ -125,23 +125,23 @@ export default function AdminPortfolio() {
           <p style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', margin: '0 0 16px' }}>
             {editing ? `Editing: ${editing.title}` : 'Add Court to Portfolio'}
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>TITLE *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>TITLE *</label>
               <input type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})}
                 placeholder="e.g. IIMPACT Hoop Lab Basketball Court"
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>LOCATION *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>LOCATION *</label>
               <input type="text" value={form.location} onChange={e => setForm({...form, location: e.target.value})}
                 placeholder="e.g. Colombo 03"
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>SPORT TYPE</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>SPORT TYPE</label>
               <select value={form.sport_type} onChange={e => setForm({...form, sport_type: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff' }}>
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff' }}>
                 {SPORT_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
@@ -150,14 +150,14 @@ export default function AdminPortfolio() {
               <label htmlFor="active_pf" style={{ fontSize: '13px', color: '#0F172A', cursor: 'pointer' }}>Show on website</label>
             </div>
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>DESCRIPTION</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>DESCRIPTION</label>
               <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})}
                 placeholder="Brief description of the court project..."
                 rows={3}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box' }} />
             </div>
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '6px' }}>COURT PHOTOS</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '6px' }}>COURT PHOTOS</label>
               <ImageUpload
                 folder="portfolio"
                 existingImages={form.images}
@@ -166,13 +166,13 @@ export default function AdminPortfolio() {
               />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button onClick={() => { setShowForm(false); setEditing(null) }}
               style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
               Cancel
             </button>
             <button onClick={save}
-              style={{ flex: 2, background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+              style={{ flex: 2, background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
               {editing ? 'Save Changes' : 'Add to Portfolio'}
             </button>
           </div>
@@ -191,7 +191,7 @@ export default function AdminPortfolio() {
           <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Add courts you have built to showcase your work</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
           {items.map(item => (
             <div key={item.id} style={{ background: '#fff', borderRadius: '12px', border: `0.5px solid ${item.is_active ? '#E2E8F0' : '#F1F5F9'}`, overflow: 'hidden' }}>
               <div style={{ aspectRatio: '16/9', background: '#F8FAFC', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -212,7 +212,7 @@ export default function AdminPortfolio() {
                   </span>
                 </div>
                 {item.images && item.images.length > 0 && (
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 10px' }}>📸 {item.images.length} photo{item.images.length > 1 ? 's' : ''}</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 10px' }}>📸 {item.images.length} photo{item.images.length > 1 ? 's' : ''}</p>
                 )}
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button onClick={() => toggleActive(item)}
@@ -224,7 +224,7 @@ export default function AdminPortfolio() {
                     Edit
                   </button>
                   <button onClick={() => deleteItem(item.id)}
-                    style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '7px', padding: '6px 10px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>
+                    style={{ background: '#FEE2E2', color: '#B91C1C', border: 'none', borderRadius: '7px', padding: '6px 10px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>
                     Delete
                   </button>
                 </div>

@@ -144,7 +144,7 @@ export default function AdminProducts() {
   const lowStockCount = products.filter(p => p.stock_quantity <= p.low_stock_threshold && p.is_active).length
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 4vw, 32px)' }}>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
@@ -152,7 +152,7 @@ export default function AdminProducts() {
           <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Manage your sports equipment store</p>
         </div>
         <button onClick={openAdd}
-          style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+          style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
           + Add Product
         </button>
       </div>
@@ -172,9 +172,9 @@ export default function AdminProducts() {
         ].map(tab => (
           <button key={tab.key} onClick={() => setFilter(tab.key)}
             style={{
-              background: filter === tab.key ? '#1B6B3A' : '#fff',
+              background: filter === tab.key ? 'var(--ag-primary)' : '#fff',
               color: filter === tab.key ? '#fff' : '#64748B',
-              border: `0.5px solid ${filter === tab.key ? '#1B6B3A' : '#E2E8F0'}`,
+              border: `0.5px solid ${filter === tab.key ? 'var(--ag-primary)' : '#E2E8F0'}`,
               borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: '500', cursor: 'pointer',
               display: 'flex', alignItems: 'center', gap: '4px',
             }}>
@@ -192,53 +192,53 @@ export default function AdminProducts() {
           <p style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', margin: '0 0 16px' }}>
             {editingProduct ? `Editing: ${editingProduct.name}` : 'Add New Product'}
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
 
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>PRODUCT NAME *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>PRODUCT NAME *</label>
               <input type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})}
                 placeholder="e.g. Spalding NBA Basketball"
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>DESCRIPTION</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>DESCRIPTION</label>
               <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})}
                 placeholder="Product description..." rows={3}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box', resize: 'vertical' }} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>CATEGORY</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>CATEGORY</label>
               <select value={form.category} onChange={e => setForm({...form, category: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff' }}>
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff' }}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_ICONS[c]} {c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
               </select>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>SKU</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>SKU</label>
               <input type="text" value={form.sku} onChange={e => setForm({...form, sku: e.target.value})}
                 placeholder="e.g. SPL-NBA-001"
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>PRICE (LKR) *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>PRICE (LKR) *</label>
               <input type="number" value={form.price_lkr} onChange={e => setForm({...form, price_lkr: parseFloat(e.target.value)})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>STOCK QUANTITY</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>STOCK QUANTITY</label>
               <input type="number" value={form.stock_quantity} onChange={e => setForm({...form, stock_quantity: parseInt(e.target.value)})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>LOW STOCK ALERT THRESHOLD</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>LOW STOCK ALERT THRESHOLD</label>
               <input type="number" value={form.low_stock_threshold} onChange={e => setForm({...form, low_stock_threshold: parseInt(e.target.value)})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -254,21 +254,21 @@ export default function AdminProducts() {
             {form.is_bulk_available && (
               <>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>MINIMUM BULK QTY</label>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>MINIMUM BULK QTY</label>
                   <input type="number" value={form.bulk_min_qty || ''} onChange={e => setForm({...form, bulk_min_qty: parseInt(e.target.value)})}
-                    style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                    style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>BULK PRICE (LKR)</label>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>BULK PRICE (LKR)</label>
                   <input type="number" value={form.bulk_price_lkr || ''} onChange={e => setForm({...form, bulk_price_lkr: parseFloat(e.target.value)})}
-                    style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                    style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
                 </div>
               </>
             )}
 
             {/* Image Upload */}
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '6px' }}>PRODUCT IMAGES</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '6px' }}>PRODUCT IMAGES</label>
               <ImageUpload
                 folder="products"
                 existingImages={form.images || []}
@@ -279,13 +279,13 @@ export default function AdminProducts() {
 
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button onClick={() => { setShowForm(false); setEditingProduct(null) }}
               style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
               Cancel
             </button>
             <button onClick={saveProduct}
-              style={{ flex: 2, background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+              style={{ flex: 2, background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
               {editingProduct ? 'Save Changes' : 'Add Product'}
             </button>
           </div>
@@ -311,7 +311,7 @@ export default function AdminProducts() {
               <div key={product.id} style={{ background: '#fff', borderRadius: '12px', border: `0.5px solid ${isLowStock ? '#FECACA' : '#E2E8F0'}`, padding: '16px 20px' }}>
                 {isLowStock && (
                   <div style={{ background: '#FEE2E2', borderRadius: '6px', padding: '4px 10px', marginBottom: '10px', display: 'inline-block' }}>
-                    <p style={{ fontSize: '11px', color: '#DC2626', fontWeight: '600', margin: 0 }}>⚠️ Low stock — only {product.stock_quantity} left</p>
+                    <p style={{ fontSize: '11px', color: '#B91C1C', fontWeight: '600', margin: 0 }}>⚠️ Low stock — only {product.stock_quantity} left</p>
                   </div>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -332,14 +332,14 @@ export default function AdminProducts() {
                           {product.is_active ? 'Active' : 'Inactive'}
                         </span>
                         {product.sku && (
-                          <span style={{ fontSize: '10px', color: '#94A3B8', fontFamily: 'monospace' }}>SKU: {product.sku}</span>
+                          <span style={{ fontSize: '10px', color: '#64748B', fontFamily: 'monospace' }}>SKU: {product.sku}</span>
                         )}
                         {product.images && product.images.length > 0 && (
                           <span style={{ fontSize: '10px', color: '#64748B' }}>📸 {product.images.length} photo{product.images.length > 1 ? 's' : ''}</span>
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                        <p style={{ fontSize: '14px', fontWeight: '700', color: '#1B6B3A', margin: 0 }}>LKR {product.price_lkr.toLocaleString()}</p>
+                        <p style={{ fontSize: '14px', fontWeight: '700', color: 'var(--ag-primary)', margin: 0 }}>LKR {product.price_lkr.toLocaleString()}</p>
                         {product.is_bulk_available && product.bulk_price_lkr && (
                           <p style={{ fontSize: '12px', color: '#1D4ED8', margin: 0 }}>Bulk: LKR {product.bulk_price_lkr.toLocaleString()} (min {product.bulk_min_qty})</p>
                         )}
@@ -352,10 +352,10 @@ export default function AdminProducts() {
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#F8FAFC', border: '0.5px solid #E2E8F0', borderRadius: '8px', padding: '4px 8px' }}>
                       <button onClick={() => updateStock(product, -1)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#DC2626', fontWeight: '700', padding: '0 4px' }}>−</button>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#B91C1C', fontWeight: '700', padding: '0 4px' }}>−</button>
                       <span style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', minWidth: '28px', textAlign: 'center' }}>{product.stock_quantity}</span>
                       <button onClick={() => updateStock(product, 1)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#1B6B3A', fontWeight: '700', padding: '0 4px' }}>+</button>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'var(--ag-primary)', fontWeight: '700', padding: '0 4px' }}>+</button>
                     </div>
                     <button onClick={() => toggleActive(product)}
                       style={{ background: product.is_active ? '#FEE2E2' : '#ECFDF5', color: product.is_active ? '#DC2626' : '#065F46', border: 'none', borderRadius: '7px', padding: '6px 12px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>

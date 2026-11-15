@@ -135,7 +135,7 @@ export default function ImageUpload({ folder, existingImages = [], onImagesChang
               <>
                 <span style={{ fontSize: '16px' }}>📸</span>
                 {images.length === 0 ? 'Upload images' : 'Add more images'}
-                <span style={{ fontSize: '11px', color: '#94A3B8' }}>
+                <span style={{ fontSize: '11px', color: '#64748B' }}>
                   ({images.length}/{maxImages})
                 </span>
               </>
@@ -145,9 +145,9 @@ export default function ImageUpload({ folder, existingImages = [], onImagesChang
       )}
 
       {error && (
-        <p style={{ fontSize: '12px', color: '#DC2626', margin: '6px 0 0' }}>{error}</p>
+        <p style={{ fontSize: '12px', color: '#B91C1C', margin: '6px 0 0' }}>{error}</p>
       )}
-      <p style={{ fontSize: '11px', color: '#94A3B8', margin: '4px 0 0' }}>
+      <p style={{ fontSize: '11px', color: '#64748B', margin: '4px 0 0' }}>
         Max {maxImages} images, up to 5MB each. JPG, PNG, WEBP supported.
       </p>
     </div>

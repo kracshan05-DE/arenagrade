@@ -151,7 +151,7 @@ function AuthContent() {
                 style={{ ...inputStyle, paddingRight: '64px' }} />
               <button type="button" onClick={() => setShowPassword(v => !v)} aria-pressed={showPassword}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
-                style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#1B6B3A', fontSize: '13px', fontWeight: 600, cursor: 'pointer', padding: '8px', minHeight: '36px' }}>
+                style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--ag-primary)', fontSize: '13px', fontWeight: 600, cursor: 'pointer', padding: '8px', minHeight: '36px' }}>
                 {showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
@@ -176,7 +176,7 @@ function AuthContent() {
           </div>
 
           <button type="submit" disabled={loading} className="ag-tap"
-            style={{ width: '100%', background: loading ? '#94A3B8' : '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '15px', fontWeight: '700', cursor: loading ? 'not-allowed' : 'pointer', marginBottom: '16px' }}>
+            style={{ width: '100%', background: loading ? '#94A3B8' : 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '15px', fontWeight: '700', cursor: loading ? 'not-allowed' : 'pointer', marginBottom: '16px' }}>
             {loading ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
         </form>
@@ -184,7 +184,7 @@ function AuthContent() {
         <p style={{ textAlign: 'center', fontSize: '14px', color: '#475569', margin: 0 }}>
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
           <button type="button" onClick={() => { setIsSignUp(!isSignUp); setError(''); setMessage('') }}
-            style={{ background: 'none', border: 'none', color: '#1B6B3A', fontWeight: '700', cursor: 'pointer', fontSize: '14px', padding: '6px 2px' }}>
+            style={{ background: 'none', border: 'none', color: 'var(--ag-primary)', fontWeight: '700', cursor: 'pointer', fontSize: '14px', padding: '6px 2px' }}>
             {isSignUp ? 'Sign In' : 'Sign Up'}
           </button>
         </p>

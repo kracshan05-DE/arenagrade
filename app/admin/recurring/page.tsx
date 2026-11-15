@@ -135,14 +135,14 @@ export default function AdminRecurring() {
   }
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 4vw, 32px)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px' }}>Recurring Bookings</h1>
           <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Set up company or academy weekly bookings</p>
         </div>
         <button onClick={() => setShowForm(!showForm)}
-          style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+          style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
           + Add Recurring Booking
         </button>
       </div>
@@ -165,74 +165,74 @@ export default function AdminRecurring() {
       {showForm && (
         <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '20px' }}>
           <p style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', margin: '0 0 16px' }}>New Recurring Booking</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
 
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>COMPANY / ACADEMY NAME *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>COMPANY / ACADEMY NAME *</label>
               <input type="text" value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})}
                 placeholder="e.g. IIMPACT Academy, XYZ Company"
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>COURT *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>COURT *</label>
               <select value={form.court_id} onChange={e => setForm({...form, court_id: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff' }}>
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff' }}>
                 {courts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>COURT TYPE</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>COURT TYPE</label>
               <select value={form.court_type} onChange={e => setForm({...form, court_type: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff' }}>
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff' }}>
                 {COURT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>DAY OF WEEK *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>DAY OF WEEK *</label>
               <select value={form.day_of_week} onChange={e => setForm({...form, day_of_week: parseInt(e.target.value)})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff' }}>
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff' }}>
                 {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
               </select>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>PRICE (LKR)</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>PRICE (LKR)</label>
               <input type="number" value={form.price_lkr} onChange={e => setForm({...form, price_lkr: parseFloat(e.target.value)})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>START TIME *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>START TIME *</label>
               <input type="time" value={form.start_time} onChange={e => setForm({...form, start_time: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>END TIME *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>END TIME *</label>
               <input type="time" value={form.end_time} onChange={e => setForm({...form, end_time: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>FROM DATE *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>FROM DATE *</label>
               <input type="date" value={form.date_from} min={today} onChange={e => setForm({...form, date_from: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>TO DATE *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>TO DATE *</label>
               <input type="date" value={form.date_to} min={form.date_from || today} onChange={e => setForm({...form, date_to: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>NOTES</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>NOTES</label>
               <input type="text" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})}
                 placeholder="e.g. Contact: 0771234567"
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
           </div>
 
@@ -242,13 +242,13 @@ export default function AdminRecurring() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button onClick={() => setShowForm(false)}
               style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
               Cancel
             </button>
             <button onClick={save} disabled={generating}
-              style={{ flex: 2, background: generating ? '#94A3B8' : '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: generating ? 'not-allowed' : 'pointer' }}>
+              style={{ flex: 2, background: generating ? '#94A3B8' : 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: generating ? 'not-allowed' : 'pointer' }}>
               {generating ? 'Generating slots...' : 'Save & Generate Slots'}
             </button>
           </div>
@@ -282,9 +282,9 @@ export default function AdminRecurring() {
                     <span style={{ fontSize: '12px', color: '#64748B' }}>📅 Every {DAYS[booking.day_of_week]}</span>
                     <span style={{ fontSize: '12px', color: '#64748B' }}>🕐 {booking.start_time.slice(0,5)} - {booking.end_time.slice(0,5)}</span>
                     <span style={{ fontSize: '12px', color: '#64748B' }}>🏀 {COURT_TYPES.find(t => t.value === booking.court_type)?.label}</span>
-                    <span style={{ fontSize: '12px', color: '#1B6B3A', fontWeight: '600' }}>LKR {booking.price_lkr.toLocaleString()}</span>
+                    <span style={{ fontSize: '12px', color: 'var(--ag-primary)', fontWeight: '600' }}>LKR {booking.price_lkr.toLocaleString()}</span>
                   </div>
-                  <p style={{ fontSize: '12px', color: '#94A3B8', margin: '4px 0 0' }}>
+                  <p style={{ fontSize: '12px', color: '#64748B', margin: '4px 0 0' }}>
                     {booking.date_from} → {booking.date_to}
                     {booking.notes && ` · ${booking.notes}`}
                   </p>
@@ -299,7 +299,7 @@ export default function AdminRecurring() {
                     {booking.is_active ? 'Deactivate' : 'Activate'}
                   </button>
                   <button onClick={() => deleteBooking(booking.id)}
-                    style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '7px', padding: '6px 10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
+                    style={{ background: '#FEE2E2', color: '#B91C1C', border: 'none', borderRadius: '7px', padding: '6px 10px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
                     Delete
                   </button>
                 </div>

@@ -219,7 +219,7 @@ export default function AdminCourts() {
   }
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 4vw, 32px)' }}>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
         <div>
@@ -228,7 +228,7 @@ export default function AdminCourts() {
         </div>
         <button
           onClick={() => setShowAddCourt(!showAddCourt)}
-          style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+          style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
         >
           + Add Court
         </button>
@@ -244,46 +244,46 @@ export default function AdminCourts() {
       {showAddCourt && (
         <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '20px' }}>
           <p style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', margin: '0 0 16px' }}>Add New Court</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '12px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>COURT NAME *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>COURT NAME *</label>
               <input type="text" value={newCourt.name} onChange={e => setNewCourt({...newCourt, name: e.target.value})}
                 placeholder="e.g. Main Basketball Court"
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>LOCATION *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>LOCATION *</label>
               <select value={newCourt.location_id} onChange={e => setNewCourt({...newCourt, location_id: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff' }}>
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff' }}>
                 <option value="">Select location</option>
                 {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>SPORT TYPE *</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>SPORT TYPE *</label>
               <select value={newCourt.sport_type_id} onChange={e => setNewCourt({...newCourt, sport_type_id: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff' }}>
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff' }}>
                 <option value="">Select sport</option>
                 {sportTypes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>SLOT DURATION (hours)</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>SLOT DURATION (hours)</label>
               <select value={newCourt.slot_duration_hrs} onChange={e => setNewCourt({...newCourt, slot_duration_hrs: parseInt(e.target.value)})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff' }}>
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff' }}>
                 <option value={1}>1 hour</option>
                 <option value={2}>2 hours</option>
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>OPERATING START</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>OPERATING START</label>
               <input type="time" value={newCourt.operating_start} onChange={e => setNewCourt({...newCourt, operating_start: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>OPERATING END</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>OPERATING END</label>
               <input type="time" value={newCourt.operating_end} onChange={e => setNewCourt({...newCourt, operating_end: e.target.value})}
-                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <input type="checkbox" checked={newCourt.has_half_court} onChange={e => setNewCourt({...newCourt, has_half_court: e.target.checked})} id="hc_new" />
@@ -291,19 +291,19 @@ export default function AdminCourts() {
             </div>
             {newCourt.has_half_court && (
               <div>
-                <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>HALF COURT CUTOFF TIME</label>
+                <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>HALF COURT CUTOFF TIME</label>
                 <input type="time" value={newCourt.half_court_cutoff} onChange={e => setNewCourt({...newCourt, half_court_cutoff: e.target.value})}
-                  style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                  style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button onClick={() => setShowAddCourt(false)}
               style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
               Cancel
             </button>
             <button onClick={addCourt}
-              style={{ flex: 2, background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+              style={{ flex: 2, background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
               Add Court
             </button>
           </div>
@@ -324,33 +324,33 @@ export default function AdminCourts() {
                 // Edit mode
                 <div>
                   <p style={{ fontSize: '14px', fontWeight: '600', color: '#0F172A', margin: '0 0 16px' }}>Editing: {court.name}</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '16px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>COURT NAME</label>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>COURT NAME</label>
                       <input type="text" value={editingCourt.name}
                         onChange={e => setEditingCourt({...editingCourt, name: e.target.value})}
-                        style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                        style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>SLOT DURATION (hours)</label>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>SLOT DURATION (hours)</label>
                       <select value={editingCourt.slot_duration_hrs}
                         onChange={e => setEditingCourt({...editingCourt, slot_duration_hrs: parseInt(e.target.value)})}
-                        style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', background: '#fff' }}>
+                        style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', background: '#fff' }}>
                         <option value={1}>1 hour</option>
                         <option value={2}>2 hours</option>
                       </select>
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>OPERATING START</label>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>OPERATING START</label>
                       <input type="time" value={editingCourt.operating_start?.slice(0,5)}
                         onChange={e => setEditingCourt({...editingCourt, operating_start: e.target.value})}
-                        style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                        style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>OPERATING END</label>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>OPERATING END</label>
                       <input type="time" value={editingCourt.operating_end?.slice(0,5)}
                         onChange={e => setEditingCourt({...editingCourt, operating_end: e.target.value})}
-                        style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                        style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <input type="checkbox" checked={editingCourt.has_half_court}
@@ -360,10 +360,10 @@ export default function AdminCourts() {
                     </div>
                     {editingCourt.has_half_court && (
                       <div>
-                        <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>HALF COURT CUTOFF</label>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>HALF COURT CUTOFF</label>
                         <input type="time" value={editingCourt.half_court_cutoff?.slice(0,5)}
                           onChange={e => setEditingCourt({...editingCourt, half_court_cutoff: e.target.value})}
-                          style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }} />
+                          style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', boxSizing: 'border-box' }} />
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '10px' }}>
                           <input type="checkbox" checked={!!editingCourt.weekend_full_court_only}
                             onChange={e => setEditingCourt({...editingCourt, weekend_full_court_only: e.target.checked})}
@@ -399,30 +399,30 @@ export default function AdminCourts() {
                       <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 10px' }}>Slot price = hourly price × slot length. Changes apply to newly generated slots; existing bookings keep the price paid.</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         {editingPricing.map((p, i) => (
-                          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', alignItems: 'center', background: '#F8FAFC', borderRadius: '8px', padding: '10px' }}>
+                          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', alignItems: 'center', background: '#F8FAFC', borderRadius: '8px', padding: '10px' }}>
                             <div>
-                              <p style={{ fontSize: '10px', color: '#94A3B8', margin: '0 0 3px' }}>TIER</p>
+                              <p style={{ fontSize: '10px', color: '#64748B', margin: '0 0 3px' }}>TIER</p>
                               <input type="text" value={p.tier_name}
                                 onChange={e => { const updated = [...editingPricing]; updated[i] = {...p, tier_name: e.target.value}; setEditingPricing(updated) }}
-                                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
+                                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', boxSizing: 'border-box' }} />
                             </div>
                             <div>
-                              <p style={{ fontSize: '10px', color: '#94A3B8', margin: '0 0 3px' }}>FROM</p>
+                              <p style={{ fontSize: '10px', color: '#64748B', margin: '0 0 3px' }}>FROM</p>
                               <input type="time" value={p.time_from?.slice(0,5)}
                                 onChange={e => { const updated = [...editingPricing]; updated[i] = {...p, time_from: e.target.value}; setEditingPricing(updated) }}
-                                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
+                                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', boxSizing: 'border-box' }} />
                             </div>
                             <div>
-                              <p style={{ fontSize: '10px', color: '#94A3B8', margin: '0 0 3px' }}>TO</p>
+                              <p style={{ fontSize: '10px', color: '#64748B', margin: '0 0 3px' }}>TO</p>
                               <input type="time" value={p.time_to?.slice(0,5)}
                                 onChange={e => { const updated = [...editingPricing]; updated[i] = {...p, time_to: e.target.value}; setEditingPricing(updated) }}
-                                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
+                                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', boxSizing: 'border-box' }} />
                             </div>
                             <div>
-                              <p style={{ fontSize: '10px', color: '#94A3B8', margin: '0 0 3px' }}>PRICE (LKR)</p>
+                              <p style={{ fontSize: '10px', color: '#64748B', margin: '0 0 3px' }}>PRICE (LKR)</p>
                               <input type="number" value={p.price_lkr}
                                 onChange={e => { const updated = [...editingPricing]; updated[i] = {...p, price_lkr: parseFloat(e.target.value)}; setEditingPricing(updated) }}
-                                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }} />
+                                style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '12px', boxSizing: 'border-box' }} />
                             </div>
                           </div>
                         ))}
@@ -460,20 +460,20 @@ export default function AdminCourts() {
                           </div>
                         )}
                         <button onClick={addMissingPrices} disabled={addingPrices}
-                          style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, cursor: addingPrices ? 'wait' : 'pointer' }}>
+                          style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: 600, cursor: addingPrices ? 'wait' : 'pointer' }}>
                           {addingPrices ? 'Saving…' : 'Save prices'}
                         </button>
                       </div>
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button onClick={() => setEditingCourt(null)}
                       style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                       Cancel
                     </button>
                     <button onClick={saveCourtChanges}
-                      style={{ flex: 2, background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+                      style={{ flex: 2, background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                       Save Changes
                     </button>
                   </div>
@@ -503,10 +503,10 @@ export default function AdminCourts() {
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button
                       onClick={() => toggleCourtStatus(court)}
-                      style={{ background: court.is_active ? '#FEE2E2' : '#ECFDF5', color: court.is_active ? '#DC2626' : '#065F46', border: 'none', borderRadius: '7px', padding: '7px 14px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
+                      style={{ background: court.is_active ? '#FEE2E2' : '#ECFDF5', color: court.is_active ? '#B91C1C' : '#065F46', border: 'none', borderRadius: '7px', padding: '7px 14px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}
                     >
                       {court.is_active ? 'Deactivate' : 'Activate'}
                     </button>

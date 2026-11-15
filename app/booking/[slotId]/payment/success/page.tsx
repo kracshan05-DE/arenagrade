@@ -116,12 +116,12 @@ export default function SuccessPage() {
           </div>
           <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 6px' }}>{header.title}</h1>
           <p style={{ fontSize: '14px', color: '#64748B', margin: 0 }}>{header.text}</p>
-          {order && <p style={{ fontSize: '12px', color: '#94A3B8', margin: '10px 0 0', fontFamily: 'monospace' }}>Reference: {order}</p>}
+          {order && <p style={{ fontSize: '12px', color: '#64748B', margin: '10px 0 0', fontFamily: 'monospace' }}>Reference: {order}</p>}
         </div>
 
         {view === 'confirmed' && booking && (
           <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '14px' }}>
-            <p style={{ fontSize: '11px', color: '#94A3B8', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 16px' }}>BOOKING DETAILS</p>
+            <p style={{ fontSize: '11px', color: '#64748B', fontWeight: '500', letterSpacing: '0.04em', margin: '0 0 16px' }}>BOOKING DETAILS</p>
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
               <div style={{ width: '48px', height: '48px', background: '#ECFDF5', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>🏀</div>
               <div>
@@ -132,26 +132,26 @@ export default function SuccessPage() {
             <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Date</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Date</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{formatDate(booking.slots?.slot_date)}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Time</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Time</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{range(booking)}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Court type</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Court type</p>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#0F172A', margin: 0 }}>{COURT_TYPE_LABELS[booking.slots?.court_type ?? '']}</p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 3px' }}>Amount paid</p>
-                  <p style={{ fontSize: '13px', fontWeight: '700', color: '#1B6B3A', margin: 0 }}>LKR {Number(booking.total_lkr).toLocaleString()}</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 3px' }}>Amount paid</p>
+                  <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--ag-primary)', margin: 0 }}>LKR {Number(booking.total_lkr).toLocaleString()}</p>
                 </div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '0.5px solid #F1F5F9' }}>
               <div>
-                <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 2px' }}>Booking reference</p>
+                <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 2px' }}>Booking reference</p>
                 <p style={{ fontSize: '12px', fontWeight: '600', color: '#0F172A', margin: 0, fontFamily: 'monospace' }}>{booking.idempotency_key || booking.payhere_payment_id}</p>
               </div>
               <span style={{ fontSize: '11px', background: '#ECFDF5', color: '#065F46', padding: '4px 10px', borderRadius: '20px', fontWeight: '600' }}>Confirmed</span>
@@ -169,7 +169,7 @@ export default function SuccessPage() {
         <div style={{ display: 'flex', gap: '10px' }}>
           {view === 'failed' ? (
             <a href={`/booking/${slotId}/payment`}
-              style={{ flex: 1, background: '#1B6B3A', color: '#fff', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: '600', textDecoration: 'none', textAlign: 'center' }}>
+              style={{ flex: 1, background: 'var(--ag-primary)', color: '#fff', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: '600', textDecoration: 'none', textAlign: 'center' }}>
               Try payment again
             </a>
           ) : (
@@ -179,7 +179,7 @@ export default function SuccessPage() {
             </a>
           )}
           <a href="/"
-            style={{ flex: 1, background: view === 'failed' ? '#F1F5F9' : '#1B6B3A', color: view === 'failed' ? '#64748B' : '#fff', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: '600', textDecoration: 'none', textAlign: 'center' }}>
+            style={{ flex: 1, background: view === 'failed' ? '#F1F5F9' : 'var(--ag-primary)', color: view === 'failed' ? '#64748B' : '#fff', borderRadius: '10px', padding: '12px', fontSize: '14px', fontWeight: '600', textDecoration: 'none', textAlign: 'center' }}>
             Book another court
           </a>
         </div>

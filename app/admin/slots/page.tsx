@@ -34,7 +34,7 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }
   locked:    { bg: '#FFFBEB', color: '#92400E', label: 'Reserved' },
   booked:    { bg: '#EFF6FF', color: '#1D4ED8', label: 'Booked' },
   blocked:   { bg: '#F1F5F9', color: '#64748B', label: 'Blocked' },
-  na:        { bg: '#F8FAFC', color: '#94A3B8', label: 'N/A' },
+  na:        { bg: '#F8FAFC', color: '#64748B', label: 'N/A' },
 }
 
 export default function AdminSlots() {
@@ -247,7 +247,7 @@ export default function AdminSlots() {
             {autoNa ? 'N/A' : st.label}
           </span>
         </div>
-        <p style={{ fontSize: '13px', fontWeight: '700', color: '#1B6B3A', margin: '0 0 4px' }}>LKR {slot.price_lkr.toLocaleString()}</p>
+        <p style={{ fontSize: '13px', fontWeight: '700', color: 'var(--ag-primary)', margin: '0 0 4px' }}>LKR {slot.price_lkr.toLocaleString()}</p>
         {slot.internal_reason && (
           <p style={{ fontSize: '11px', color: '#64748B', margin: '0 0 8px', fontStyle: 'italic' }}>📌 {slot.internal_reason}</p>
         )}
@@ -285,7 +285,7 @@ export default function AdminSlots() {
               ) : (
                 <div>
                   <input type="text" placeholder="Reason" value={blockReason} onChange={e => setBlockReason(e.target.value)}
-                    style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '11px', outline: 'none', marginBottom: '4px', boxSizing: 'border-box' }} />
+                    style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '6px', padding: '5px 8px', fontSize: '11px', marginBottom: '4px', boxSizing: 'border-box' }} />
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <button onClick={() => blockSlot(slot.id)} style={{ flex: 1, background: '#92400E', color: '#fff', border: 'none', borderRadius: '5px', padding: '5px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>Block</button>
                     <button onClick={() => { setBlockingSlotId(''); setBlockReason('') }} style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '5px', padding: '5px', fontSize: '11px', cursor: 'pointer' }}>Cancel</button>
@@ -309,7 +309,7 @@ export default function AdminSlots() {
   }
 
   return (
-    <div style={{ padding: '28px 32px' }}>
+    <div style={{ padding: 'clamp(16px, 4vw, 28px) clamp(16px, 4vw, 32px)' }}>
 
       {/* Bulk generation modal */}
       {showBulkModal && (
@@ -322,16 +322,16 @@ export default function AdminSlots() {
             </p>
 
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', marginBottom: '6px', fontWeight: '500' }}>NUMBER OF DAYS</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <label style={{ display: 'block', fontSize: '11px', color: '#64748B', marginBottom: '6px', fontWeight: '500' }}>NUMBER OF DAYS</label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {[7, 14, 30, 60].map(d => (
                   <button key={d} onClick={() => setBulkDays(d)}
-                    style={{ flex: 1, background: bulkDays === d ? '#1B6B3A' : '#F8FAFC', color: bulkDays === d ? '#fff' : '#64748B', border: `0.5px solid ${bulkDays === d ? '#1B6B3A' : '#E2E8F0'}`, borderRadius: '8px', padding: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+                    style={{ flex: 1, background: bulkDays === d ? 'var(--ag-primary)' : '#F8FAFC', color: bulkDays === d ? '#fff' : '#64748B', border: `0.5px solid ${bulkDays === d ? 'var(--ag-primary)' : '#E2E8F0'}`, borderRadius: '8px', padding: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                     {d}
                   </button>
                 ))}
               </div>
-              <p style={{ fontSize: '12px', color: '#94A3B8', margin: '6px 0 0' }}>
+              <p style={{ fontSize: '12px', color: '#64748B', margin: '6px 0 0' }}>
                 From today to {new Date(Date.now() + bulkDays * 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </p>
             </div>
@@ -350,24 +350,24 @@ export default function AdminSlots() {
               <div style={{ marginBottom: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{ fontSize: '12px', color: '#64748B' }}>Generating...</span>
-                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#1B6B3A' }}>{bulkProgress.current} / {bulkProgress.total} days</span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--ag-primary)' }}>{bulkProgress.current} / {bulkProgress.total} days</span>
                 </div>
                 <div style={{ height: '8px', background: '#F1F5F9', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', background: '#1B6B3A', borderRadius: '4px', width: `${bulkProgress.total > 0 ? (bulkProgress.current / bulkProgress.total) * 100 : 0}%`, transition: 'width 0.3s ease' }} />
+                  <div style={{ height: '100%', background: 'var(--ag-primary)', borderRadius: '4px', width: `${bulkProgress.total > 0 ? (bulkProgress.current / bulkProgress.total) * 100 : 0}%`, transition: 'width 0.3s ease' }} />
                 </div>
                 {bulkProgress.skipped > 0 && (
-                  <p style={{ fontSize: '11px', color: '#94A3B8', margin: '4px 0 0' }}>{bulkProgress.skipped} existing slots left unchanged</p>
+                  <p style={{ fontSize: '11px', color: '#64748B', margin: '4px 0 0' }}>{bulkProgress.skipped} existing slots left unchanged</p>
                 )}
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button onClick={() => setShowBulkModal(false)} disabled={bulkGenerating}
                 style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '13px', fontWeight: '600', cursor: bulkGenerating ? 'not-allowed' : 'pointer', opacity: bulkGenerating ? 0.5 : 1 }}>
                 Cancel
               </button>
               <button onClick={generateBulkSlots} disabled={bulkGenerating}
-                style={{ flex: 2, background: bulkGenerating ? '#94A3B8' : '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '13px', fontWeight: '600', cursor: bulkGenerating ? 'not-allowed' : 'pointer' }}>
+                style={{ flex: 2, background: bulkGenerating ? '#94A3B8' : 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px', fontSize: '13px', fontWeight: '600', cursor: bulkGenerating ? 'not-allowed' : 'pointer' }}>
                 {bulkGenerating ? `Generating... (${bulkProgress.current}/${bulkProgress.total})` : `Generate ${bulkDays} days`}
               </button>
             </div>
@@ -380,9 +380,9 @@ export default function AdminSlots() {
           <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px' }}>Slot Management</h1>
           <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Generate, block, and manage court slots</p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button onClick={() => setShowBulkModal(true)}
-            style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
             ⚡ Bulk Generate
           </button>
           <a href="/admin/recurring"
@@ -394,28 +394,28 @@ export default function AdminSlots() {
 
       {/* Controls */}
       <div style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '12px', alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', alignItems: 'end' }}>
           <div>
-            <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', fontWeight: '500', marginBottom: '5px', letterSpacing: '0.04em' }}>COURT</label>
+            <label style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: '500', marginBottom: '5px', letterSpacing: '0.04em' }}>COURT</label>
             <select value={selectedCourt} onChange={e => setSelectedCourt(e.target.value)}
-              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '9px 10px', fontSize: '13px', color: '#0F172A', background: '#fff', outline: 'none' }}>
+              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '9px 10px', fontSize: '13px', color: '#0F172A', background: '#fff' }}>
               {courts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '11px', color: '#94A3B8', fontWeight: '500', marginBottom: '5px', letterSpacing: '0.04em' }}>DATE</label>
+            <label style={{ display: 'block', fontSize: '11px', color: '#64748B', fontWeight: '500', marginBottom: '5px', letterSpacing: '0.04em' }}>DATE</label>
             <input type="date" value={selectedDate} min={today} max={maxDateStr}
               onChange={e => setSelectedDate(e.target.value)}
-              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '9px 10px', fontSize: '13px', color: '#0F172A', outline: 'none', background: '#fff', boxSizing: 'border-box' }} />
+              style={{ width: '100%', border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '9px 10px', fontSize: '13px', color: '#0F172A', background: '#fff', boxSizing: 'border-box' }} />
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             <button onClick={generateSlots} disabled={generating}
               style={{ background: '#475569', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 16px', fontSize: '13px', fontWeight: '600', cursor: generating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: generating ? 0.7 : 1 }}>
               {generating ? 'Generating...' : '+ This date'}
             </button>
             {slots.length > 0 && (
               <button onClick={deleteAllSlots}
-                style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '8px', padding: '9px 14px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+                style={{ background: '#FEE2E2', color: '#B91C1C', border: 'none', borderRadius: '8px', padding: '9px 14px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                 Clear
               </button>
             )}
@@ -457,7 +457,7 @@ export default function AdminSlots() {
                 placeholder="Reason (optional), e.g. Poya" aria-label="Reason for full court only"
                 style={{ border: '0.5px solid #CBD5E1', borderRadius: '8px', padding: '8px 10px', fontSize: '13px', minWidth: '180px' }} />
               <button onClick={() => setFullCourtOnly(true)} disabled={holidayBusy}
-                style={{ background: '#0B2818', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 14px', fontSize: '13px', fontWeight: 600, cursor: holidayBusy ? 'wait' : 'pointer' }}>
+                style={{ background: 'var(--ag-primary-deep)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 14px', fontSize: '13px', fontWeight: 600, cursor: holidayBusy ? 'wait' : 'pointer' }}>
                 Make full court only
               </button>
             </>
@@ -498,7 +498,7 @@ export default function AdminSlots() {
           <p style={{ fontSize: '15px', fontWeight: '500', color: '#0F172A', margin: '0 0 4px' }}>No slots for this date</p>
           <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 16px' }}>Use Bulk Generate to create slots for the next 7, 14, 30, or 60 days at once</p>
           <button onClick={() => setShowBulkModal(true)}
-            style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+            style={{ background: 'var(--ag-primary)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
             ⚡ Bulk Generate
           </button>
         </div>
@@ -517,7 +517,7 @@ export default function AdminSlots() {
                   <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '20px', fontWeight: '500', background: isPeak ? '#FEF3C7' : '#ECFDF5', color: isPeak ? '#92400E' : '#065F46' }}>
                     {isPeak ? 'Peak' : 'Off-peak'}
                   </span>
-                  <span style={{ fontSize: '11px', color: '#94A3B8', marginLeft: 'auto' }}>
+                  <span style={{ fontSize: '11px', color: '#64748B', marginLeft: 'auto' }}>
                     {Object.values(group).filter(Boolean).length} slot unit{Object.values(group).filter(Boolean).length > 1 ? 's' : ''}
                   </span>
                 </div>

@@ -28,7 +28,7 @@ export default function GlobalError({
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
               <button
                 onClick={reset}
-                style={{ background: '#1B6B3A', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px 24px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
+                style={{ background: '#1D3A5A', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px 24px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}
               >
                 Try again
               </button>
@@ -39,7 +39,7 @@ export default function GlobalError({
               </a>
             </div>
             {error.digest && (
-              <p style={{ fontSize: '11px', color: '#94A3B8', margin: '16px 0 0', fontFamily: 'monospace' }}>
+              <p style={{ fontSize: '11px', color: '#64748B', margin: '16px 0 0', fontFamily: 'monospace' }}>
                 Error ID: {error.digest}
               </p>
             )}
