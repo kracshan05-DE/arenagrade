@@ -94,11 +94,10 @@ function AuthContent() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{ width: '44px', height: '44px', background: '#1B6B3A', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', margin: '0 auto 12px' }}>
-            🏟
-          </div>
-          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px' }}>
-            Arena<span style={{ color: '#1B6B3A' }}>Grade</span>
+          <h1 style={{ margin: '0 0 10px' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- static brand logo */}
+            <img src="/brand/arenagrade-logo.png" alt="ArenaGrade" width={112} height={112}
+              style={{ display: 'block', width: '112px', height: '112px', margin: '0 auto', borderRadius: '12px' }} />
           </h1>
           <p style={{ fontSize: '14px', color: '#475569', margin: 0 }}>
             {isSignUp ? 'Create your account' : 'Sign in to your account'}

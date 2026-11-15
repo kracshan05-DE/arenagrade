@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase, getCurrentUser } from '@/lib/supabase'
+import BrandMark from '@/components/BrandMark'
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/admin', icon: '📊' },
@@ -65,9 +66,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Logo */}
         <div style={{ padding: '20px 16px', borderBottom: '0.5px solid rgba(255,255,255,0.1)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '28px', height: '28px', background: '#1B6B3A', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>
-              🏟
-            </div>
+            <BrandMark size={28} />
             <div>
               <p style={{ fontSize: '14px', fontWeight: '700', color: '#fff', margin: 0 }}>ArenaGrade</p>
               <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', margin: 0 }}>Admin Panel</p>
