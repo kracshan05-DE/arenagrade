@@ -45,6 +45,7 @@ const MESSAGES: Record<string, string> = {
   half_court_bookings_exist: 'A half court on this date is already booked or reserved. Cancel it before making the day full court only.',
   invalid_date: 'Please choose today or a later date.',
   court_not_found: 'Court not found.',
+  court_in_use: 'This court has bookings or payment history, so it cannot be deleted. Deactivate it instead to hide it from customers.',
   test_bookings_only_in_testing_mode: 'Test bookings are only possible while online booking is set to "Admins only (testing)".',
   server_error: 'Something went wrong on our side. Please try again.',
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import ImageUpload from '@/components/ImageUpload'
+import ImageUpload, { finalizeImageChanges } from '@/components/ImageUpload'
 
 interface Product {
   id: string
@@ -56,6 +56,8 @@ export default function AdminProducts() {
   const [form, setForm] = useState({ ...emptyProduct })
   const [message, setMessage] = useState('')
   const [filter, setFilter] = useState('all')
+  // Photos as they were when the form opened: decides what to clean up on save/cancel.
+  const [originalImages, setOriginalImages] = useState<string[]>([])
 
   useEffect(() => { loadProducts() }, [])
 
@@ -68,6 +70,7 @@ export default function AdminProducts() {
 
   const openAdd = () => {
     setForm({ ...emptyProduct })
+    setOriginalImages([])
     setEditingProduct(null)
     setShowForm(true)
   }
@@ -87,6 +90,7 @@ export default function AdminProducts() {
       bulk_price_lkr: product.bulk_price_lkr,
       images: product.images || [],
     })
+    setOriginalImages(product.images || [])
     setEditingProduct(product)
     setShowForm(true)
   }
@@ -119,6 +123,7 @@ export default function AdminProducts() {
       if (error) { setMessage('Error: ' + error.message); return }
       setMessage('Product added successfully.')
     }
+    await finalizeImageChanges(originalImages, payload.images, payload.images)
     setShowForm(false)
     setEditingProduct(null)
     await loadProducts()
@@ -272,7 +277,7 @@ export default function AdminProducts() {
               <ImageUpload
                 folder="products"
                 existingImages={form.images || []}
-                onImagesChange={(urls) => setForm({...form, images: urls})}
+                onImagesChange={(urls) => setForm((f) => ({ ...f, images: urls }))}
                 maxImages={5}
               />
             </div>
@@ -280,7 +285,7 @@ export default function AdminProducts() {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button onClick={() => { setShowForm(false); setEditingProduct(null) }}
+            <button onClick={() => { void finalizeImageChanges(originalImages, form.images || [], null); setShowForm(false); setEditingProduct(null) }}
               style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
               Cancel
             </button>

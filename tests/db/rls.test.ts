@@ -125,7 +125,7 @@ describe('function privileges', () => {
         and has_function_privilege('authenticated', p.oid, 'execute')
       order by 1`)
     expect(r.rows.map((x) => x.proname)).toEqual([
-      'admin_block_slot', 'admin_confirm_test_booking', 'admin_decide_cancellation', 'admin_generate_court_slots',
+      'admin_block_slot', 'admin_confirm_test_booking', 'admin_decide_cancellation', 'admin_delete_court', 'admin_generate_court_slots',
       'admin_generate_recurring_slots', 'admin_set_booking_mode', 'admin_set_full_court_only_day', 'admin_unblock_slot', 'admin_update_refund', 'hold_slot', 'hold_slots', 'is_super_admin', 'release_hold',
       'request_booking_cancellation',
     ])

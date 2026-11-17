@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import ImageUpload from '@/components/ImageUpload'
+import ImageUpload, { finalizeImageChanges } from '@/components/ImageUpload'
 
 interface Portfolio {
   id: string
@@ -33,6 +33,8 @@ export default function AdminPortfolio() {
   const [editing, setEditing] = useState<Portfolio | null>(null)
   const [form, setForm] = useState({ ...emptyForm })
   const [message, setMessage] = useState('')
+  // Photos as they were when the form opened: decides what to clean up on save/cancel.
+  const [originalImages, setOriginalImages] = useState<string[]>([])
 
   useEffect(() => { loadItems() }, [])
 
@@ -45,6 +47,7 @@ export default function AdminPortfolio() {
 
   const openAdd = () => {
     setForm({ ...emptyForm })
+    setOriginalImages([])
     setEditing(null)
     setShowForm(true)
   }
@@ -58,6 +61,7 @@ export default function AdminPortfolio() {
       images: item.images || [],
       is_active: item.is_active,
     })
+    setOriginalImages(item.images || [])
     setEditing(item)
     setShowForm(true)
   }
@@ -84,6 +88,7 @@ export default function AdminPortfolio() {
       if (error) { setMessage('Error: ' + error.message); return }
       setMessage('Added successfully.')
     }
+    await finalizeImageChanges(originalImages, form.images, form.images)
     setShowForm(false)
     setEditing(null)
     await loadItems()
@@ -96,7 +101,9 @@ export default function AdminPortfolio() {
 
   const deleteItem = async (id: string) => {
     if (!confirm('Delete this portfolio item?')) return
-    await supabase.from('court_portfolio').delete().eq('id', id)
+    const { error } = await supabase.from('court_portfolio').delete().eq('id', id)
+    if (error) { setMessage('Error: ' + error.message); return }
+    await finalizeImageChanges(items.find((i) => i.id === id)?.images || [], [], [])
     await loadItems()
   }
 
@@ -161,13 +168,13 @@ export default function AdminPortfolio() {
               <ImageUpload
                 folder="portfolio"
                 existingImages={form.images}
-                onImagesChange={(urls) => setForm({...form, images: urls})}
+                onImagesChange={(urls) => setForm((f) => ({ ...f, images: urls }))}
                 maxImages={8}
               />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button onClick={() => { setShowForm(false); setEditing(null) }}
+            <button onClick={() => { void finalizeImageChanges(originalImages, form.images, null); setShowForm(false); setEditing(null) }}
               style={{ flex: 1, background: '#F1F5F9', color: '#64748B', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
               Cancel
             </button>
