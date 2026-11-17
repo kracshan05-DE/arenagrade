@@ -7,6 +7,9 @@ import Navbar from '@/components/Navbar'
 import { allowsMultiHour, courtFacts, isWeekend, lkr, time12 } from '@/lib/courtInfo'
 import { useBookingMode } from '@/lib/useBookingMode'
 import BookingModeBanner from '@/components/BookingModeBanner'
+import CourtGallery from '@/components/CourtGallery'
+import Icon from '@/components/Icon'
+import { isGoogleMapsUrl } from '@/lib/mapsUrl'
 
 interface Court {
   id: string
@@ -18,8 +21,10 @@ interface Court {
   slot_duration_hrs: number
   max_consecutive_slots: number | null
   weekend_full_court_only?: boolean | null
-  locations: { name: string; address: string }
+  locations: { name: string; address: string | null; google_maps_url?: string | null } | null
   sport_types: { name: string }
+  description?: string | null
+  images?: string[] | null
   court_pricing: {
     tier_name: string
     time_from: string
@@ -74,7 +79,7 @@ export default function CourtPage() {
     const loadCourt = async () => {
       const { data } = await supabase
         .from('courts')
-        .select(`*, locations(name, address), sport_types(name), court_pricing(tier_name, time_from, time_to, price_lkr, applies_to)`)
+        .select(`*, locations(name, address, google_maps_url), sport_types(name), court_pricing(tier_name, time_from, time_to, price_lkr, applies_to)`)
         .eq('id', courtId)
         .single()
       if (data) setCourt(data)
@@ -364,16 +369,21 @@ export default function CourtPage() {
 
         {/* Court Info */}
         <div style={{ background: '#fff', borderRadius: '14px', border: '0.5px solid #E2E8F0', padding: '20px', marginBottom: '14px' }}>
+          <CourtGallery name={court.name} images={court.images ?? []} />
           <div style={{ display: 'flex', gap: '14px', marginBottom: '16px' }}>
-            <div style={{ width: '56px', height: '56px', background: '#ECFDF5', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', flexShrink: 0 }}>
-              🏀
-            </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                 <div>
                   <h1 style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px' }}>{court.name}</h1>
-                  <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 1px' }}>📍 {court.locations.name}</p>
-                  <p style={{ fontSize: '12px', color: '#475569', margin: 0 }}>{court.locations.address}</p>
+                  {court.locations && <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 1px' }}>{court.locations.name}</p>}
+                  {court.locations?.address && <p style={{ fontSize: '12px', color: '#475569', margin: 0 }}>{court.locations.address}</p>}
+                  {court.locations?.google_maps_url && isGoogleMapsUrl(court.locations.google_maps_url) && (
+                    <a href={court.locations.google_maps_url} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '13px', fontWeight: 600, color: 'var(--ag-primary)' }}>
+                      Open in Google Maps<span className="ag-sr-only"> (opens in a new tab)</span>
+                      <Icon name="external" size={14} />
+                    </a>
+                  )}
                 </div>
                 <span style={{ fontSize: '11px', background: '#ECFDF5', color: '#065F46', padding: '4px 10px', borderRadius: '20px', fontWeight: '500', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   {court.sport_types.name}
@@ -400,6 +410,10 @@ export default function CourtPage() {
               </span>
             )}
           </div>
+
+          {court.description?.trim() && (
+            <p style={{ fontSize: '14px', lineHeight: 1.55, color: '#334155', margin: '0 0 16px', whiteSpace: 'pre-line' }}>{court.description.trim()}</p>
+          )}
 
           <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '14px' }}>
             <h2 style={{ fontSize: '12px', color: '#64748B', fontWeight: '600', letterSpacing: '0.04em', margin: '0 0 8px' }}>PRICES</h2>

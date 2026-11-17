@@ -12,6 +12,7 @@ interface Court {
   locations: { name: string; address: string }
   sport_types: { name: string }
   court_pricing: { tier_name: string; price_lkr: number; applies_to: string }[]
+  images?: string[] | null
 }
 
 interface Product {
@@ -275,9 +276,14 @@ export default function LandingPage() {
                 return (
                 <article key={court.id} aria-labelledby={`court-${court.id}`} style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '18px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', gap: '14px' }}>
                   <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', minWidth: 0 }}>
-                    <div aria-hidden="true" style={{ width: '52px', height: '52px', background: 'var(--ag-primary-soft)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
-                      {SPORT_ICONS[court.sport_types.name] || '🏟'}
-                    </div>
+                    {court.images?.[0] ? (
+                      <img src={court.images[0]} alt="" loading="lazy"
+                        style={{ width: isMobile ? '88px' : '120px', height: isMobile ? '66px' : '90px', objectFit: 'cover', borderRadius: '12px', flexShrink: 0, background: '#F1F5F9' }} />
+                    ) : (
+                      <div aria-hidden="true" style={{ width: '52px', height: '52px', background: 'var(--ag-primary-soft)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0 }}>
+                        {SPORT_ICONS[court.sport_types.name] || '🏟'}
+                      </div>
+                    )}
                     <div style={{ minWidth: 0 }}>
                       <h3 id={`court-${court.id}`} style={{ fontSize: '16px', fontWeight: '700', color: '#0F172A', margin: '0 0 4px' }}>{court.name}</h3>
                       <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 8px' }}>📍 {court.locations.name}</p>
